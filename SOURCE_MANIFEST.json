@@ -1,0 +1,140 @@
+{
+  "schema": "source-manifest-v1",
+  "task_id": "WQ-C-20261026-015",
+  "status": "ANDROID10_SOURCE_ONLY_UNCOMPILED_NOT_INSTALLED",
+  "version": "0.1.4",
+  "parent_source_path": "/FOSS/Kyocera Music Player and Playlist Sync/WQE019_Audio_Focus_Call_Pause_2026-10-24/WQE019_KYOCERA_KEYPAD_PLAYER_v0.1.3_AUDIO_FOCUS_CALL_PAUSE_SOURCE_ONLY.zip",
+  "parent_source_sha256": "31c47aaf56d49df8ca16759095159df4ff8df8635f7a01c8963aa8447a16a0f3",
+  "integrated_patches": [
+    {
+      "name": "WQD018_OPTIONAL_THREE_GUARD_SOURCE.patch",
+      "sha256": "87ae2362abd103d1ffbefd2d098dc7e234b48efe22e96a6a5d66af0172e199a1"
+    },
+    {
+      "name": "WQC045_OPTIONAL_COMPLETION_FOCUS_GUARD_SOURCE_ONLY.patch",
+      "sha256": "68c53640b5d97b4d44e612f5e692c54ab31dec669b46e0c02676a41d5bd1510c"
+    }
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "size_bytes": 4350,
+      "sha256": "6b461216fd5d7b4d260bd341ea1de90808b29af07f302b29359fb3c1eada4034"
+    },
+    {
+      "path": "WQC063_OWNER_HANDOFF.md",
+      "size_bytes": 1411,
+      "sha256": "8f3795716f4aabaaf23b96c5162b60766fe1b7770e73de6bee2bbd8b13cd0baa"
+    },
+    {
+      "path": "app/build.gradle",
+      "size_bytes": 400,
+      "sha256": "25b7cdf336291251c7d62b7029ca5b7a0d2c40fe86cc7f3ae06dc01948aec9f5"
+    },
+    {
+      "path": "app/src/main/AndroidManifest.xml",
+      "size_bytes": 739,
+      "sha256": "a05237020e174455e9290e3447a8b945bb8d072e4ea347686cafc4f29e377472"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java",
+      "size_bytes": 28741,
+      "sha256": "0d78202cae312ab0ffa4c21139b9277756ea12fed143f70d6de97ce6a1cfcd74"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/AudioFocusGate.java",
+      "size_bytes": 1027,
+      "sha256": "5cde04242ab000204e9123c1bf87c3978dea2b55547e28059e56d98e9d37b9f6"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/CompletionPolicy.java",
+      "size_bytes": 565,
+      "sha256": "494ee9537995389b8696f2d61a7adc3d0012be71ddcc0294d2fd4a32d0bea073"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PhoneSnapshotExport.java",
+      "size_bytes": 8460,
+      "sha256": "cbfb7dfcb4f26c5050f2ca4fadd3d3b84b4b299edaae78747eebec453eefaa11"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlaybackGate.java",
+      "size_bytes": 662,
+      "sha256": "b4dab82002a5f41f022e677bf73d5c4364aa5e687370f0a2e140c694eb9955e1"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlayerState.java",
+      "size_bytes": 6304,
+      "sha256": "3446fe5ad857e76dd5b39f81b43abd2ae3f161a1cb8e4b9b530f9a6a9dc9a42e"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/StateCodec.java",
+      "size_bytes": 3484,
+      "sha256": "20bc9e0eeee4ad1310b6de557a81cccefa769fcbf13403f6e0b7ed8efc307489"
+    },
+    {
+      "path": "build.gradle",
+      "size_bytes": 69,
+      "sha256": "fd4af6dfc5c96ac5f6742b33878cb2a880e2a7803f41aebedf4e357f9e3091ff"
+    },
+    {
+      "path": "sample/fictional_phone_export.json",
+      "size_bytes": 1265,
+      "sha256": "a7994aa9c46d4183068b8de1b4ec964c23af77676c0c7b47400115c9178ea3fe"
+    },
+    {
+      "path": "settings.gradle",
+      "size_bytes": 285,
+      "sha256": "5a8ba2fc4c19359da32a0a9dcbc58552d09ea4b910732ce83eb1b44c55cab958"
+    },
+    {
+      "path": "tests/AudioFocusGateTests.java",
+      "size_bytes": 3144,
+      "sha256": "2900f1c8acf2481cd87a940532cc0ff86233dcd6d05490c73fad5d2af2dc745c"
+    },
+    {
+      "path": "tests/CompletionPolicyTests.java",
+      "size_bytes": 3475,
+      "sha256": "526b425d025f18577d3116b50c9723e7bcb22a0cc2918e7ae0f4bdce54a4ba3b"
+    },
+    {
+      "path": "tests/PlaybackGateTests.java",
+      "size_bytes": 1370,
+      "sha256": "50f91882546ac7a3a4f659e81e00455a8f4f90773dc56ba6bd814df9099d7505"
+    },
+    {
+      "path": "tests/SnapshotExportTests.java",
+      "size_bytes": 5674,
+      "sha256": "f83b70631ed16f4defe319e1a52baf7cbdbeb01e1ce0d90b591317786f4fe016"
+    },
+    {
+      "path": "tests/StateTests.java",
+      "size_bytes": 4510,
+      "sha256": "7af6b6ba1f03e3f4028f85659380f906cbf5e6c8610c3140157e8400534a8958"
+    },
+    {
+      "path": "tests/check_android_source_guard.py",
+      "size_bytes": 1495,
+      "sha256": "722ca98abe98795eca04e882ae0509695fdeecdd0c5c7caf7db27df19210f542"
+    },
+    {
+      "path": "tests/check_audio_focus_integration.py",
+      "size_bytes": 2026,
+      "sha256": "61876b1092282ebc941a5da1955acec059fdf6070ed081b59628cb4a2f74c2ba"
+    },
+    {
+      "path": "tests/check_completion_policy.py",
+      "size_bytes": 1086,
+      "sha256": "92e1c850a36e0d0bd909ae74a220cdd99331aa69bb47e03bbc7d72e9a35de48e"
+    },
+    {
+      "path": "tests/check_integrated_callback_guards.py",
+      "size_bytes": 2531,
+      "sha256": "b7cb0629832d267a97973c7f4678a3443a6cd27c205bb90d716f017dfc1a1222"
+    },
+    {
+      "path": "tests/run_core_tests.sh",
+      "size_bytes": 656,
+      "sha256": "44625c57db1879e0e310d110f66e4170e271b5aeaf52bc44272af9f3ef3fe4e0"
+    }
+  ]
+}

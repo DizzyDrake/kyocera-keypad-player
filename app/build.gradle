@@ -1,0 +1,13 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'org.roarin.kyocerakeypad'
+    compileSdk 33
+    defaultConfig {
+        applicationId 'org.roarin.kyocerakeypad'
+        minSdk 29
+        targetSdk 29
+        versionCode 3
+        versionName '0.1.4-source-only'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+}
