@@ -1,27 +1,70 @@
-# Kyocera E4831 Keypad Player v0.1.4 — consolidated audio-focus and callback safety source-only candidate
+> **WQA365 disposable sandbox source variant.** This is NOT an update to the installed Keypad Player. Read `README_WQA365_DISPOSABLE_SIDE_BY_SIDE_TRIAL.md` before building or considering installation.
 
-**WQ-E-20261024-019 · OFFLINE SOURCE ONLY · NOT AN APK · NOT COMPILED AGAINST ANDROID SDK · NOT INSTALLED OR PHONE-TESTED.**
+# Keypad Player v0.1.5 — WQD059 integrated OFFLINE source review candidate
 
-Frozen parent: WQ147 v0.1.2 Android10 metadata-export source-only ZIP, SHA-256 `7ba462c7da7ccee8de57340a47a3cce68c2912df89d480742f1837305a54a87a`. The parent ZIP, WQ143/144/147 history, owner device and media are unchanged. This candidate retains WQ147's on-phone playlist/bookmark/player and manual metadata export behavior. It addresses Aurora's 2026-10-24 requirement to **pause actual playback** during an incoming call rather than merely mute it.
+**Source only. No APK built, no Android SDK compilation, no owner-device test, no installation or release.**
 
-## Intended behavior in the uncompiled Activity
+Frozen WQC063 v0.1.4 parent SHA-256 `8f3dec513ed7b1205a7a0e8275fe4c7ec29988cd030f9deeba5526d4ee0e1623`. D058 reviewed patch combination: WQD049 + WQA339 + WQC070 applied with `patch -p1 --fuzz=0`; WQE076's exact tested prompt body and EditorInfo import transplanted after verifying against frozen parent. WQE077 is intentionally **not** reapplied because WQD049 already includes its completion authorization-before-save ordering.
 
-- Explicit Play requests Android 10 `AudioManager` focus with music or speech `AudioAttributes`. A denied request or `MODE_RINGTONE`, `MODE_IN_CALL`, `MODE_IN_COMMUNICATION` blocks starting playback. No telephony/SMS permissions.
-- `AUDIOFOCUS_LOSS`, `AUDIOFOCUS_LOSS_TRANSIENT`, and `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK` all revoke playback authorization and call `MediaPlayer.pause()` if prepared/playing. The app snapshots and persists the active music or audiobook position without resetting the other context.
-- `AUDIOFOCUS_GAIN` never auto-resumes: after a call the user must select Play. This is a conservative **proposed** post-call policy, not a separately confirmed owner decision. The focus state machine and existing foreground gate both must permit `MediaPlayer.start()` in async prepare, seek-complete and manual Play paths.
-- Focus is abandoned on manual Pause, navigation, stop, Activity pause/destroy. A generation counter ignores delayed focus callbacks belonging to abandoned requests. The existing app does **not** play in background: a future background playback Service must own this focus lifecycle before background audio can be claimed.
-- Existing playlist order, separate music/audiobook positions, bookmarks, MediaStore validation, and manual metadata export remain unchanged in production source apart from the Activity and the new pure-Java focus gate.
+## Proposed owner-visible changes
 
-## Tests performed
+- Browse/search library selection now offers explicit **Preview / Play** before playlist insertion. Preview uses a separate `MediaPlayer`, requires explicit Center/Play, pauses/stops on focus loss or navigation, and never selects music/audiobook listening progress, creates bookmarks, or changes playlist order. Previous normal player is stopped only after saving its position; a failed persist blocks preview. The actual Android media lifecycle and E4831 keypad require testing.
+- Explicit **Add to selected playlist** or **Choose playlist to add** actions. A failed `AtomicFile` save rolls back the just-added in-memory entry to prevent an accidental later commit. Missing/changed audio identities cannot be added through the new flow. Existing playlist editing remains.
+- D-pad Right A–Z title index and keypad Save/Cancel/IME Done path from reviewed optional patches. E4831 physical behavior remains unverified.
+- Provisional dusty-red/burgundy header (`#713E46`), off-white body, dark text, visible light focus highlight, 18sp multiline list rows and 15sp footer. These colors are a reversible **proposal**, not owner-selected swatches. Actual E4831 layout/clipping remains untested.
+- Keypad-accessible About dialog: version, **Gradle configuration UTC** generated on the builder machine (not an independently verified APK build completion timestamp), source preparation date, `Release date: Not released`, and owner-requested attribution `Made by GPT-6 and Aurora Williamsen`. No fictional release date or APK build date is hardcoded.
 
-Run `sh tests/run_core_tests.sh` from the extracted source folder (JDK 8+, Python 3). On the worker's isolated host: 31 core state, 10 lifecycle gate, 18 audio-focus gate/fictional-state, 24 snapshot export assertions, 10 inherited updated static checks, and 16 new static checks all passed. The original WQ147 baseline also passed 31+10+24+9. The inherited static test initially failed because it matched the obsolete `playbackGate.canStart()` expression; that failure was preserved and the test strengthened to require the combined foreground+focus gate.
+## Host-only tests
 
-**These tests do not compile or run `KeypadPlayerActivity`**: no Android SDK/API29 `android.jar`, emulator, APK, incoming-call event, audio hardware, Bluetooth/headset, background service or E4831 was available. A focus-loss callback during ringing and its timing on the actual E4831 are **unverified**. Android 10 does not guarantee all apps honor audio focus. `AudioManager.getMode()` is a secondary conservative guard, not proof that every call state will be detected.
+Run `sh tests/run_core_tests.sh` from extracted source with JDK 8+ and Python 3. This runs inherited pure-Java and source checks, WQC070 alphabet tests, WQE076 keypad prompt source checks, and new WQD059 source checks. The WQC070 original test's old inline-add expectation is replaced in this candidate by a stronger explicit-add-helper/rollback check; the original failing output is preserved in queue evidence, not concealed. No Android SDK is present in this worker environment; host/static PASS is not proof the Activity compiles, that Gradle metadata generates, or that playback/keypad works on the E4831.
 
-## Owner-controlled next step
+## Owner-review / trial boundaries
 
-Review the small source diff, then independently compile with a real Android API29 toolchain and test with fictional media on an emulator. Only with fresh Aurora approval: install a built APK on the E4831 and check ringing, answered/declined/outgoing calls, manual resume, bookmarks and playback position. Background playback remains unimplemented. Do not flash/install or modify existing media, call data, ADB settings, protected F:, or schedules on the basis of this source-only candidate.
+Do not install over the owner-tested v0.1.4 until Aurora reviews this candidate and approves a build and disposable-media phone trial. On-device first trial: create a disposable playlist with physical keys, Right → A–Z → Center → CLR, audition a search result without adding, confirm saved music/audiobook positions unchanged, then explicitly add a track. Call-pause, saved-state crash recovery, build metadata and actual screen contrast need separate validation. No background playback service exists. No permissions beyond the existing READ_EXTERNAL_STORAGE were added.
 
-## v0.1.4 source-only integration (WQ-C-20261026-015)
+No owner media, real export JSON, F:, live phone, credentials, GitHub, Docker, or schedules were accessed.
 
-Combined reviewed WQD018 late-prepare navigation, stale MediaPlayer error, guaranteed release after reset failure, and WQC045 completion/focus authorization guards. This is not a new APK and is not phone-tested. The original WQE019 v0.1.3 remains immutable. No background audio service exists; no call interception or telephony permission is added. Remaining paused after a call until manual Play is a proposed conservative default, not a separately confirmed owner choice. A future owner-supervised Android build and actual ringing/active-call, position, playlist and keypad trial are necessary.
+## WQA355 v0.1.6 source-only durability integration (2026-10-27)
+
+This is an **offline source candidate**, not an APK or owner-installed update. It
+builds on the exact frozen WQD059 v0.1.5 source and integrates WQE082's reviewed
+failed-media-open selection restoration once. Nine playlist/bookmark mutation
+paths now edit a decoded copy of the PlayerState and publish it in memory only
+after a successful AtomicFile write. A failed write or edit leaves the original
+in-memory state unchanged; playlist deletion first requires a successful
+previous-playhead save. The existing guarded add-track path is retained.
+
+`bash tests/run_core_tests.sh` runs the inherited host suite and the new
+fictional pure-Java 84-assertion mutation test, five Android-source wiring tests,
+and seven WQE082 regression checks. These are **not** an Android compilation,
+real AtomicFile injection, actual media playback, keypad test, or call-pause
+validation. The source ZIP includes no Gradle wrapper, SDK or built APK.
+
+**Known limitations:** Other state writes (seek/playhead, library scan and
+completion) are outside the new transactional edit helper. A failed media-open
+restoration write can still leave the persisted new selection; it displays a
+warning. Saving a name in a dialog that encounters a storage failure may close
+the dialog and require retyping. Owner-installed v0.1.4 remains unchanged.
+See `OWNER_TRIAL_WQA355.md` for the bounded owner collaboration and rollback.
+
+
+## WQA357 v0.1.7 completion-context integration (2026-10-27)
+
+**Offline source review candidate only; no Android build/APK or E4831 device test.**
+This follows independent WQD061 discovery that after a successful playlist
+copy-persist-publish reorder/removal, the old completion listener mixed a
+current-state next index with a captured old Playlist object. The callback now
+resolves the current playlist and index together via the pure-Java
+`CompletionPolicy.nextSelection` helper, refusing to advance if the playlist,
+completed track, listening kind, progress identity, or next track is missing.
+The existing playback/focus authorization guard remains ahead of this lookup.
+
+The new `CompletionSelectionTests.java` executes the actual PlayerState and
+CompletionPolicy with fictional music/book entries. Its 21 assertions include
+reorder, removal, deletion, stale progress, missing media and kind separation.
+`tests/test_wqa357_completion_wiring.py` checks Activity callback wiring.
+The inherited host tests remain. The baseline stale selection failure is
+recorded in the separate Work Queue evidence. No background playback, Android
+MediaPlayer callback or incoming-call behavior was exercised here.
+
+See `OWNER_TRIAL_WQA357.md` for source-only build/rollback boundaries.

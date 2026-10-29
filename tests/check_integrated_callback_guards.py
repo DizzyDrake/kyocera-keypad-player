@@ -12,8 +12,8 @@ class IntegratedGuardChecks(unittest.TestCase):
 
     def test_completion_checks_authorization_before_advancing(self):
         block = ACT.split('player.setOnCompletionListener(mp->{',1)[1].split('player.setOnErrorListener',1)[0]
-        self.assertLess(block.index('CompletionPolicy.mayAdvance(playbackGate,audioFocusGate)'), block.index('state.nextIndex(p.id,key)'))
-        self.assertLess(block.index('CompletionPolicy.mayAdvance(playbackGate,audioFocusGate)'), block.index('playFrom(p,next,false)'))
+        self.assertLess(block.index('CompletionPolicy.mayAdvance(playbackGate,audioFocusGate)'), block.index('CompletionPolicy.nextSelection('))
+        self.assertLess(block.index('CompletionPolicy.mayAdvance(playbackGate,audioFocusGate)'), block.index('playFrom(next.playlist,next.index,false)'))
 
     def test_completion_no_focus_reacquisition(self):
         block = ACT.split('player.setOnCompletionListener(mp->{',1)[1].split('player.setOnErrorListener',1)[0]
@@ -28,11 +28,11 @@ class IntegratedGuardChecks(unittest.TestCase):
         self.assertIn('if("NOW".equals(screen))showNow();',block)
 
     def test_stop_detaches_before_release(self):
-        block = ACT.split('private void stopPlayer()',1)[1].split('private boolean persist()',1)[0]
+        block = ACT.split('private boolean stopPlayer()',1)[1].split('private boolean persist()',1)[0]
         self.assertLess(block.index('player=null;'),block.index('old.reset();'))
 
     def test_release_runs_even_after_reset_failure(self):
-        block = ACT.split('private void stopPlayer()',1)[1].split('private boolean persist()',1)[0]
+        block = ACT.split('private boolean stopPlayer()',1)[1].split('private boolean persist()',1)[0]
         self.assertIn('finally{try{old.release();}catch(Exception ignored){}}',block)
 
     def test_completion_policy_is_pure_java(self):

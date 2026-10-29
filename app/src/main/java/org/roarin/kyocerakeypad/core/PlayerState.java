@@ -26,6 +26,18 @@ public final class PlayerState {
     public static final class Progress {
         public String playlistId = "", trackKey = "";
         public long positionMs = 0L;
+        public Progress() {}
+        /** Snapshot the three fields, not a reference to mutable live progress. */
+        public Progress(Progress other) {
+            playlistId=other.playlistId;
+            trackKey=other.trackKey;
+            positionMs=other.positionMs;
+        }
+        public void restoreFrom(Progress saved) {
+            playlistId=saved.playlistId;
+            trackKey=saved.trackKey;
+            positionMs=saved.positionMs;
+        }
     }
     public static final class Bookmark {
         public final String trackKey, name;

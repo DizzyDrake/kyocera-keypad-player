@@ -14,6 +14,9 @@ import android.net.Uri;
 import android.provider.MediaStore;
 import android.util.AtomicFile;
 import android.view.*;
+import android.view.inputmethod.EditorInfo;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.widget.*;
 import org.roarin.kyocerakeypad.core.PlayerState;
 import org.roarin.kyocerakeypad.core.StateCodec;
@@ -21,72 +24,104 @@ import org.roarin.kyocerakeypad.core.PlaybackGate;
 import org.roarin.kyocerakeypad.core.AudioFocusGate;
 import org.roarin.kyocerakeypad.core.CompletionPolicy;
 import org.roarin.kyocerakeypad.core.PhoneSnapshotExport;
+import org.roarin.kyocerakeypad.core.AlphabetJump;
+import org.roarin.kyocerakeypad.core.StateMutation;
+import org.roarin.kyocerakeypad.core.FailedOpenRollback;
 import java.io.*;
 import java.util.*;
 
 /**
- * SOURCE-ONLY Android 10 candidate. Native focusable lists and dialogs; real
+ * WQB405 SOURCE-ONLY service-integration prototype. Native focusable lists; real
  * E4831 keypad, viewport, playback and lifecycle behavior have NOT been tested.
  */
 public final class KeypadPlayerActivity extends Activity {
     private static final int PERMISSION_REQUEST=29;
-    private PlayerState state=new PlayerState();
-    private AtomicFile store;
-    private boolean recoveryMode=false, mediaReady=false, prepared=false, activeBook=false;
+    // Service is the only owner of PlayerState, AtomicFile, MediaPlayer and focus.
+    private PlayerState state;
+    private KeypadPlaybackService playback;
+    private boolean bound;
+    private boolean recoveryMode=false, mediaReady=false, activeBook=false;
     private final Set<String> missing=new HashSet<>(), conflicts=new HashSet<>();
     private final Map<String,String> mediaPaths=new HashMap<>();
-    private MediaPlayer player;
-    private final PlaybackGate playbackGate=new PlaybackGate();
-    private final AudioFocusGate audioFocusGate=new AudioFocusGate();
-    private AudioManager audioManager;
-    private AudioFocusRequest audioFocusRequest;
-    private long focusEpoch=0L; // Ignore callbacks from abandoned focus requests.
+    private final KeypadPlaybackService.Listener playbackListener=new KeypadPlaybackService.Listener(){
+        @Override public void onPlaybackChanged(){
+            if(playback==null)return;
+            state=playback.state;activeBook=playback.activeBook;
+            if(previewPlayer!=null && !playback.previewFocusGranted())stopPreview();
+            if("NOW".equals(screen)) {
+                // Preserve the selected D-pad action on periodic playback updates.
+                // If Now Playing rows change, also review selection identity.
+                int selected = list.getSelectedItemPosition();
+                showNow();
+                if (selected >= 0 && selected < labels.size()) list.setSelection(selected);
+            }
+        }
+        @Override public void onPlaybackError(String error){
+            if(!isFinishing())message(error);
+        }
+    };
+    private final ServiceConnection serviceConnection=new ServiceConnection(){
+        @Override public void onServiceConnected(ComponentName name,IBinder binder){
+            playback=((KeypadPlaybackService.LocalBinder)binder).service();bound=true;
+            state=playback.state;recoveryMode=playback.recoveryMode;
+            activeBook=playback.activeBook;playback.setListener(playbackListener);
+            if(recoveryMode){
+                heading.setText("Saved state needs recovery");
+                footer.setText("Preserve app data. Do not clear storage.");
+                list.setAdapter(new ArrayAdapter<>(KeypadPlayerActivity.this,
+                    android.R.layout.simple_list_item_1,
+                    new String[]{"Cannot safely open saved playlists. Press Back to exit."}));
+            }else{
+                showHome();
+                if(checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED)scanLibrary();
+                else requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},PERMISSION_REQUEST);
+            }
+        }
+        @Override public void onServiceDisconnected(ComponentName name){
+            playback=null;state=null;actions.clear();labels.clear();
+            heading.setText("Playback connection lost");footer.setText("No automatic restart. Reopen when safe.");
+            list.setAdapter(new ArrayAdapter<>(KeypadPlayerActivity.this,
+                android.R.layout.simple_list_item_1,new String[]{"Playback unavailable; press Back to exit."}));
+        }
+    };
     private final Handler timer=new Handler();
     private String screen="HOME", selectedPlaylist="", selectedTrack="", libraryFilter="";
     private boolean adding=false, browsingBook=false;
     private TextView heading, footer;
+    private MediaPlayer previewPlayer; // Isolated audition: never writes music/book progress.
+    private boolean previewPrepared=false, previewRequested=false;
+    private String previewTrackKey="", libraryTrackKey="";
+    private int libraryTrackSelection=0;
     private ListView list;
     private final ArrayList<Runnable> actions=new ArrayList<>();
     private final ArrayList<String> labels=new ArrayList<>();
+    private final ArrayList<String> visibleLibraryTitles=new ArrayList<>();
+    private int libraryReturnSelection=0;
     private long lastPersistAt=0L;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
-        audioManager=(AudioManager)getSystemService(Context.AUDIO_SERVICE);
-        store=new AtomicFile(new File(getFilesDir(),"keypad_player_state_v1.bin"));
-        File stateFile=new File(getFilesDir(),"keypad_player_state_v1.bin");
-        if(stateFile.exists() || new File(stateFile.getPath()+".bak").exists()) {
-            try(InputStream in=store.openRead()) {
-                ByteArrayOutputStream out=new ByteArrayOutputStream(); byte[] b=new byte[8192];int n;
-                while((n=in.read(b))!=-1){if(out.size()+n>16*1024*1024)throw new IOException("Oversize state");out.write(b,0,n);}
-                state=StateCodec.decode(out.toByteArray());
-            }catch(Exception e){recoveryMode=true;}
-        }
         LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);
-        heading=new TextView(this);heading.setTextSize(16);heading.setPadding(6,4,6,4);
-        footer=new TextView(this);footer.setTextSize(12);footer.setPadding(6,2,6,2);
+        box.setBackgroundColor(Color.parseColor("#F5F0EB"));
+        heading=new TextView(this);heading.setTextSize(19);heading.setPadding(12,9,12,9);
+        heading.setTextColor(Color.WHITE);heading.setBackgroundColor(Color.parseColor("#713E46"));
+        footer=new TextView(this);footer.setTextSize(15);footer.setPadding(12,8,12,8);
+        footer.setTextColor(Color.parseColor("#252022"));footer.setBackgroundColor(Color.parseColor("#E9DCD8"));
         list=new ListView(this);list.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+        list.setBackgroundColor(Color.parseColor("#F5F0EB"));
+        list.setSelector(new ColorDrawable(Color.parseColor("#D6A6AD")));
         box.addView(heading);box.addView(list,new LinearLayout.LayoutParams(-1,0,1));box.addView(footer);
         setContentView(box);
         list.setOnItemClickListener((parent,view,pos,id)->{if(pos>=0 && pos<actions.size())actions.get(pos).run();});
-        if(recoveryMode) {
-            heading.setText("Saved state needs recovery");
-            footer.setText("No changes allowed. Preserve app data and contact developer; do not clear storage.");
-            list.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_list_item_1,
-                new String[]{"Cannot safely open saved playlists. Press Back to exit."}));
-        } else {
-            showHome();
-            if(checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED)scanLibrary();
-            else requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},PERMISSION_REQUEST);
-        }
+        heading.setText("Loading playback state");
+        footer.setText("Connecting to local playback service · no autoplay");
+        bound=bindService(new Intent(this,KeypadPlaybackService.class),serviceConnection,Context.BIND_AUTO_CREATE);
+        if(!bound){heading.setText("Playback service unavailable");footer.setText("No changes made. Reopen when safe.");}
         timer.postDelayed(tick,2000);
     }
     private final Runnable tick=new Runnable(){@Override public void run(){
-        if(player!=null && prepared && player.isPlaying()){
-            saveActivePosition();
-            if(SystemClock.elapsedRealtime()-lastPersistAt>=5000){persist();lastPersistAt=SystemClock.elapsedRealtime();}
-            if("NOW".equals(screen))footer.setText("Playing: "+clock(player.getCurrentPosition())+"  |  Center selects action");
-        }
+        if(playback!=null && playback.isPlaying() && "NOW".equals(screen))
+            footer.setText("Playing: "+clock(playback.position())+"  |  Center selects action");
         timer.postDelayed(this,2000);
     }};
     private static String clock(long ms){long s=Math.max(0,ms)/1000;return String.format(Locale.US,"%02d:%02d:%02d",s/3600,(s/60)%60,s%60);}
@@ -95,7 +130,8 @@ public final class KeypadPlayerActivity extends Activity {
         list.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,labels){
             @Override public View getView(int position,View convert,android.view.ViewGroup parent){
                 TextView t=(TextView)super.getView(position,convert,parent);
-                t.setTextSize(14);t.setSingleLine(false);t.setMaxLines(3);t.setPadding(8,7,8,7);
+                t.setTextSize(18);t.setTextColor(Color.parseColor("#252022"));
+                t.setSingleLine(false);t.setMaxLines(4);t.setPadding(12,12,12,12);
                 return t;
             }
         });
@@ -112,19 +148,35 @@ public final class KeypadPlayerActivity extends Activity {
         item("Resume audiobook (explicit play)",()->resume(true));
         item("Export metadata for PC (manual)",this::confirmMetadataExport);
         item("Help / controls",this::showHelp);
-        render("Keypad Player · offline",mediaReady?"D-pad moves · Center selects · Back returns":"Audio permission needed for library playback");
+        item("About / version",this::showAbout);
+        render("WQB405 · UNBUILT PROTOTYPE",mediaReady?"D-pad moves · Center selects · Back returns":"Audio permission needed for library playback");
+    }
+    private void showAbout(){
+        // BUILD_UTC is generated by Gradle configuration on the builder's machine.
+        // No build timestamp is invented for an uncompiled source-only ZIP.
+        message("Keypad Player · DISPOSABLE SANDBOX\nApplication ID: "+getPackageName()+"\nVersion: "+BuildConfig.VERSION_NAME+
+            "\nBuild configured UTC: "+BuildConfig.BUILD_UTC+
+            "\nSource prototype prepared: 2026-10-28"+
+            "\nRelease date: Not released"+
+            "\nUNBUILT prototype. Distinct from original and WQA365 sandbox."+
+            "\nMade by GPT-6 and Aurora Williamsen"+
+            "\nOffline player · No cloud upload");
     }
     private void showHelp(){
         reset("HELP");item("Back to home",this::showHome);
         item("Playlists: select an item to reorder or remove",()->message("Use Move up / Move down in track actions. Order is never alphabetized."));
         item("Now playing: seek 10 seconds or bookmark",()->message("Music and audiobook progress are separate. No autoplay on launch."));
-        item("Safety / limitations",()->message("No cloud. State is private to this app. Back it up before uninstalling. MediaStore IDs can change; missing/conflicting files are blocked, never silently substituted."));
+        item("About / version",this::showAbout);
+        item("Safety / limitations",()->message("EXISTING SANDBOX UPDATE. This build uses the same app-private playlists and progress as the previous WQA365 sandbox when updated in place; it stays separate from the original player. Use disposable test media. No cloud. Do not uninstall either app to resolve signing problems. MediaStore IDs can change; missing/changed files are blocked."));
         render("Help","D-pad Up/Down · Center selects · Back returns. Physical E4831 validation pending.");
     }
     private void showPlaylists(boolean book){
         browsingBook=book;reset("PLAYLISTS");
         item("+ Create playlist",()->prompt("Playlist name","",name->{
-            String id=UUID.randomUUID().toString();state.createPlaylist(id,name,book);persist();selectedPlaylist=id;showDetail();
+            String id=UUID.randomUUID().toString();
+            if(commitMutation("Create playlist",next->next.createPlaylist(id,name,book))){
+                selectedPlaylist=id;showDetail();
+            }
         }));
         for(PlayerState.Playlist p:state.playlists.values())if(p.audiobook==book){
             item(p.name+" ("+p.entries.size()+" tracks)",()->{selectedPlaylist=p.id;showDetail();});
@@ -137,11 +189,14 @@ public final class KeypadPlayerActivity extends Activity {
         if(p==null){showPlaylists(browsingBook);return;}
         browsingBook=p.audiobook;reset("DETAIL");
         item("+ Add track from library",()->{adding=true;showLibrary(p.audiobook);});
-        item("Rename playlist",()->prompt("Rename playlist",p.name,name->{state.renamePlaylist(p.id,name);persist();showDetail();}));
+        item("Rename playlist",()->prompt("Rename playlist",p.name,name->{if(commitMutation("Rename playlist",next->next.renamePlaylist(p.id,name)))showDetail();}));
         item("Delete playlist",()->new AlertDialog.Builder(this).setTitle("Delete playlist?")
             .setMessage("The playlist is removed, but audio files remain untouched.")
             .setNegativeButton("Cancel",(d,w)->{}).setPositiveButton("Delete",(d,w)->{
-                stopPlayer();state.deletePlaylist(p.id);persist();showPlaylists(p.audiobook);
+                if(!stopPlayer()){
+                    message("Cannot delete playlist until playback position is saved.");return;
+                }
+                if(commitMutation("Delete playlist",next->next.deletePlaylist(p.id)))showPlaylists(p.audiobook);
             }).show());
         int i=0;
         for(String key:p.entries){final int idx=i++;PlayerState.Track t=state.tracks.get(key);
@@ -159,14 +214,17 @@ public final class KeypadPlayerActivity extends Activity {
         String key=p.entries.get(index);PlayerState.Track t=state.tracks.get(key);
         reset("TRACK_ACTIONS");
         item("Play this track",()->playFrom(p,index,false));
-        item("Move up",()->{if(index>0){state.move(p.id,index,index-1);persist();}showDetail();});
-        item("Move down",()->{if(index<p.entries.size()-1){state.move(p.id,index,index+1);persist();}showDetail();});
-        item("Remove from playlist (audio kept)",()->{state.remove(p.id,index);persist();showDetail();});
+        item("Move up",()->{if(index>0)commitMutation("Move track up",next->next.move(p.id,index,index-1));
+            showDetail();});
+        item("Move down",()->{if(index<p.entries.size()-1)commitMutation("Move track down",next->next.move(p.id,index,index+1));
+            showDetail();});
+        item("Remove from playlist (audio kept)",()->{commitMutation("Remove track",next->next.remove(p.id,index));showDetail();});
         item("← Back",this::showDetail);
         render(t==null?"Missing track":t.title,"Select action. Reordering never changes the audio file.");
     }
     private void showLibrary(boolean book){
-        reset("LIBRARY");
+        browsingBook=book;reset("LIBRARY");
+        visibleLibraryTitles.clear();
         item("Filter by title / artist / album / folder",()->prompt("Search local audio",libraryFilter,text->{libraryFilter=text;showLibrary(book);}));
         String f=libraryFilter.toLowerCase(Locale.ROOT);
         ArrayList<PlayerState.Track> sorted=new ArrayList<>(state.tracks.values());
@@ -174,23 +232,247 @@ public final class KeypadPlayerActivity extends Activity {
         for(PlayerState.Track t:sorted){
             String hay=(t.title+" "+t.artist+" "+t.album+" "+t.folder).toLowerCase(Locale.ROOT);
             if(!hay.contains(f))continue;
+            visibleLibraryTitles.add(t.title);
             item(t.title+" — "+t.artist+" / "+t.album+(missing.contains(t.key)?" [missing]":conflicts.contains(t.key)?" [changed]":""),()->{
-                if(adding){try{state.add(selectedPlaylist,t.key);persist();adding=false;showDetail();}
-                    catch(IllegalArgumentException e){message(e.getMessage());}}
-                else message("To play, add this track to a music or audiobook playlist first.");
+                libraryTrackSelection=Math.max(0,list.getSelectedItemPosition());
+                showLibraryTrackActions(t.key);
             });
         }
         item("← Back",()->{if(adding){adding=false;showDetail();}else showHome();});
-        render("Local audio library","MediaStore scan; missing/changed identities require review, not silent remap.");
+        render("Local audio library","Right: A-Z title jump · Up/Down: tracks · Center: select · CLR: back");
+    }
+    private void showLibraryTrackActions(String key){
+        PlayerState.Track t=state.tracks.get(key);
+        if(t==null){showLibrary(browsingBook);return;}
+        libraryTrackKey=key;
+        reset("LIBRARY_TRACK");
+        if(adding){
+            item("+ Add to selected playlist",()->{
+                try{
+                    // Keep the current selected playlist and all playback positions intact.
+                    if(!addTrackAndPersist(selectedPlaylist,key))return;
+                    adding=false;showDetail();
+                }catch(IllegalArgumentException e){message(e.getMessage());}
+            });
+        } else item("+ Choose playlist to add",()->choosePlaylistForLibraryTrack(key));
+        item("▶ Preview / Play (no playlist change)",()->startPreview(key));
+        item("← Back to library",this::returnToLibrary);
+        render(t.title,"Center selects · Preview is temporary · CLR returns");
+    }
+    private boolean addTrackAndPersist(String playlistId,String key){
+        if(missing.contains(key) || conflicts.contains(key)){
+            message("Cannot add a missing or changed audio identity. Review library first.");
+            return false;
+        }
+        state.add(playlistId,key);
+        if(persist())return true;
+        // Restore the in-memory entry if AtomicFile could not commit.
+        // Otherwise a later unrelated successful save could commit a failed add.
+        PlayerState.Playlist p=state.getPlaylist(playlistId);
+        p.entries.remove(key);
+        message("Add could not be saved. No playlist change retained; review storage before retry.");
+        return false;
+    }
+    private void choosePlaylistForLibraryTrack(String key){
+        reset("LIBRARY_ADD");
+        int count=0;
+        for(PlayerState.Playlist p:state.playlists.values()){
+            count++;
+            item("+ "+p.name+(p.audiobook?" [book]":" [music]"),()->{
+                try{
+                    if(!addTrackAndPersist(p.id,key))return;
+                    selectedPlaylist=p.id;showDetail();
+                }catch(IllegalArgumentException e){message(e.getMessage());}
+            });
+        }
+        if(count==0)item("No playlists yet · create one first",()->message("Create a playlist from Home, then return to the library."));
+        item("← Track actions",()->showLibraryTrackActions(key));
+        render("Choose destination playlist","Previewing does not add or change listening progress");
+    }
+    private void returnToLibrary(){
+        showLibrary(browsingBook);
+        selectLibraryPosition(libraryTrackSelection);
+    }
+    private void returnFromPreview(){
+        stopPreview();
+        showLibraryTrackActions(libraryTrackKey);
+    }
+    private void startPreview(String key){
+        if(!mediaReady || !state.tracks.containsKey(key) || missing.contains(key) || conflicts.contains(key)){
+            message("Preview blocked: track missing, changed or audio permission unavailable.");return;
+        }
+        // Stop and durably save the previous normal session before audition.
+        // Preview itself NEVER selects a music/audiobook session or persists its playhead.
+        stopPreview();
+        if(!stopPlayer()){
+            message("Cannot safely save previous playback. Preview was not started.");return;
+        }
+        if(!requestAudioFocusForExplicitPlay(false)){
+            message("Preview unavailable during a call or other audio interruption.");return;
+        }
+        previewTrackKey=key;
+        previewRequested=true;
+        previewPrepared=false;
+        MediaPlayer audition=new MediaPlayer();
+        previewPlayer=audition;
+        try{
+            audition.setAudioAttributes(mediaAttributes(false));
+            audition.setDataSource(this,Uri.parse(state.tracks.get(key).uri));
+            audition.setOnPreparedListener(mp->{
+                if(previewPlayer!=mp)return;
+                previewPrepared=true;
+                if(previewRequested && playback!=null && playback.previewFocusGranted())mp.start();
+                if("PREVIEW".equals(screen))showPreview();
+            });
+            audition.setOnCompletionListener(mp->{
+                if(previewPlayer!=mp)return;
+                stopPreview();
+                if("PREVIEW".equals(screen))showPreview();
+            });
+            audition.setOnErrorListener((mp,what,extra)->{
+                if(previewPlayer!=mp)return true;
+                stopPreview();message("Preview failed; original audio and saved progress unchanged.");return true;
+            });
+            audition.prepareAsync();
+            showPreview();
+        }catch(Exception e){
+            stopPreview();message("Cannot preview track: "+e.getClass().getSimpleName());
+        }
+    }
+    private void showPreview(){
+        reset("PREVIEW");
+        item("▶ Play / Pause preview",()->{
+            if(previewPlayer==null){startPreview(previewTrackKey);return;}
+            if(!previewPrepared){message("Preview is still preparing");return;}
+            try{
+                if(previewPlayer.isPlaying()){
+                    previewRequested=false;previewPlayer.pause();abandonAudioFocus();
+                }else if(requestAudioFocusForExplicitPlay(false)){
+                    previewRequested=true;
+                    if(playback!=null && playback.previewFocusGranted())previewPlayer.start();
+                }else message("Preview unavailable during a call or other audio interruption.");
+            }catch(IllegalStateException e){stopPreview();message("Preview player unavailable; retry explicitly.");}
+            showPreview();
+        });
+        item("■ Stop preview",()->{stopPreview();showPreview();});
+        item("← Track actions",this::returnFromPreview);
+        PlayerState.Track t=state.tracks.get(previewTrackKey);
+        render(t==null?"Preview":t.title,"Temporary audition · No playlist/bookmark changes · CLR stops");
+    }
+    private void stopPreview(){
+        boolean hadPreview=previewPlayer!=null || previewRequested;
+        previewRequested=false;
+        previewPrepared=false;
+        MediaPlayer old=previewPlayer;
+        previewPlayer=null; // Detach first: stale async callbacks must be ignored.
+        if(old!=null){
+            try{old.reset();}catch(Exception ignored){}
+            finally{try{old.release();}catch(Exception ignored){}}
+        }
+        if(hadPreview)abandonAudioFocus();
+    }
+    /** Source-only keypad mapping; actual E4831 key delivery still requires owner trial. */
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        int key=event.getKeyCode();
+        if ("LIBRARY".equals(screen) && key==KeyEvent.KEYCODE_DPAD_RIGHT) {
+            if(event.getAction()==KeyEvent.ACTION_DOWN && event.getRepeatCount()==0) showAlphabetIndex();
+            return true; // consume repeats and UP, so one press opens one picker
+        }
+        if ("ALPHABET".equals(screen) && key==KeyEvent.KEYCODE_DPAD_LEFT) {
+            if(event.getAction()==KeyEvent.ACTION_DOWN && event.getRepeatCount()==0) restoreLibrary();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+    private void showAlphabetIndex() {
+        libraryReturnSelection=Math.max(0,list.getSelectedItemPosition());
+        Map<Character,Integer> counts=AlphabetJump.counts(visibleLibraryTitles);
+        reset("ALPHABET");
+        for(Map.Entry<Character,Integer> entry:counts.entrySet()) {
+            final char letter=entry.getKey();
+            item(letter+" · "+entry.getValue()+" tracks",()->jumpToLibraryLetter(letter));
+        }
+        if(counts.isEmpty()) item("No tracks match current search",this::restoreLibrary);
+        item("← Return to tracks",this::restoreLibrary);
+        render("Jump to title · A-Z","Up/Down: choose letter · Center: jump · Left/CLR: return");
+    }
+    private void jumpToLibraryLetter(char letter) {
+        showLibrary(browsingBook);
+        int index=AlphabetJump.firstMatchingIndex(visibleLibraryTitles,letter);
+        if(index>=0) selectLibraryPosition(index+1); // first row is typed-filter action
+    }
+    private void restoreLibrary() {
+        showLibrary(browsingBook);
+        selectLibraryPosition(libraryReturnSelection);
+    }
+    private void selectLibraryPosition(int position) {
+        final int target=Math.max(0,Math.min(position,labels.size()-1));
+        list.post(()->{if("LIBRARY".equals(screen)){
+            list.setSelection(target);
+            list.requestFocus();
+        }});
     }
     private void prompt(String title,String initial,java.util.function.Consumer<String> onSave){
-        EditText input=new EditText(this);input.setSingleLine(true);input.setText(initial);
-        new AlertDialog.Builder(this).setTitle(title).setView(input).setNegativeButton("Cancel",(d,w)->{})
-            .setPositiveButton("Save",(d,w)->{
+        EditText input=new EditText(this);
+        input.setSingleLine(true);
+        input.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        input.setText(initial);
+        // Positive-button callbacks dismiss automatically, even on invalid input.
+        // Attach the Save handler after show() so an empty name stays editable.
+        final AlertDialog dialog=new AlertDialog.Builder(this).setTitle(title).setView(input)
+            .setNegativeButton("Cancel",(d,w)->{})
+            .setPositiveButton("Save",null).create();
+        dialog.setOnShowListener(d->{
+            final Button save=dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            final Button cancel=dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            save.setOnClickListener(v->{
                 String val=input.getText().toString().trim();
-                if(val.isEmpty()){message("Name cannot be empty");return;}
-                try{onSave.accept(val);}catch(Exception e){message("Could not save: "+e.getMessage());}
-            }).show();
+                if(val.isEmpty()){
+                    input.setError("Name cannot be empty");
+                    input.requestFocus();
+                    return;
+                }
+                // Ignore a second IME/center event while the synchronous save runs.
+                save.setEnabled(false);
+                try{
+                    onSave.accept(val);
+                    dialog.dismiss();
+                }catch(Exception e){
+                    // Avoid a second tap repeating a partially completed state write.
+                    dialog.dismiss();
+                    message("Could not save: "+e.getMessage());
+                }
+            });
+            // The E4831's edit field traps the usual Back/CLR keys as backspace.
+            // Offer three explicit alternatives; actual key mapping still needs
+            // owner-supervised device testing, not just a source-level assertion.
+            input.setOnEditorActionListener((v,actionId,event)->{
+                if(actionId==EditorInfo.IME_ACTION_DONE ||
+                   (event!=null && event.getAction()==KeyEvent.ACTION_UP &&
+                    (event.getKeyCode()==KeyEvent.KEYCODE_ENTER ||
+                     event.getKeyCode()==KeyEvent.KEYCODE_NUMPAD_ENTER))){
+                    save.performClick();return true;
+                }
+                return false;
+            });
+            input.setOnKeyListener((v,keyCode,event)->{
+                if(keyCode==KeyEvent.KEYCODE_DPAD_CENTER){
+                    if(event.getAction()==KeyEvent.ACTION_UP)save.performClick();
+                    return true;
+                }
+                if(keyCode==KeyEvent.KEYCODE_DPAD_DOWN){
+                    if(event.getAction()==KeyEvent.ACTION_UP)save.requestFocus();
+                    return true;
+                }
+                if(keyCode==KeyEvent.KEYCODE_DPAD_UP){
+                    if(event.getAction()==KeyEvent.ACTION_UP)cancel.requestFocus();
+                    return true;
+                }
+                return false;
+            });
+            input.requestFocus();
+        });
+        dialog.show();
     }
     private void message(String s){new AlertDialog.Builder(this).setMessage(s).setPositiveButton("OK",(d,w)->{}).show();}
     private void scanLibrary(){
@@ -264,94 +546,43 @@ public final class KeypadPlayerActivity extends Activity {
         int idx=pl.entries.indexOf(p.trackKey);playFrom(pl,idx,true);
     }
     private void playFrom(PlayerState.Playlist p,int index,boolean resume){
-        if(!mediaReady){message("Audio permission/library not ready");return;}
+        stopPreview();
+        if(playback==null || !mediaReady){message("Audio service/library not ready");return;}
         if(index<0 || index>=p.entries.size())return;
         String key=p.entries.get(index);
         if(!state.tracks.containsKey(key)||missing.contains(key)||conflicts.contains(key)){
-            message("Track is missing or changed. No automatic replacement by title.");return;
+            message("Track missing or changed. No title-based substitution.");return;
         }
-        long position=0;
-        PlayerState.Progress prev=state.progress(p.audiobook);
-        if(resume && prev.playlistId.equals(p.id) && prev.trackKey.equals(key))position=prev.positionMs;
-        stopPlayer();
-        // Focus is requested only for an explicit user Play/Resume action.
-        // Denial leaves both the previous and requested track stopped.
-        if(!requestAudioFocusForExplicitPlay(p.audiobook)){
-            message("Audio unavailable during a call or another audio interruption. Playback remains paused.");
-            return;
+        // Explicit Play is the only entry point that starts the foreground service.
+        startForegroundService(new Intent(this,KeypadPlaybackService.class));
+        if(!playback.playFrom(p.id,index,resume)){
+            message(playback.lastError());return;
         }
-        activeBook=p.audiobook;
-        playbackGate.requestPlay();
-        state.select(p.audiobook,p.id,key,position);persist();
-        player=new MediaPlayer();prepared=false;
-        try{
-            player.setAudioAttributes(mediaAttributes(activeBook));
-            player.setDataSource(this,Uri.parse(state.tracks.get(key).uri));
-            player.setOnPreparedListener(mp->{
-                if(player!=mp)return;
-                prepared=true;long start=state.progress(activeBook).positionMs;
-                if(start>0){mp.setOnSeekCompleteListener(seeked->{
-                    seeked.setOnSeekCompleteListener(null); // Initial resume seek only.
-                    if(player==seeked && canStartPlayback())seeked.start();
-                });
-                    mp.seekTo((int)Math.min(Integer.MAX_VALUE,start));}
-                else if(canStartPlayback())mp.start();
-                // Do not steal focus from Home/Help after a late async prepare.
-                if("NOW".equals(screen))showNow();
-            });
-            player.setOnCompletionListener(mp->{
-                if(player!=mp)return;
-                saveActivePosition();persist();
-                // A late completion callback must not turn an interrupted/paused
-                // session into a fresh focus request or start the next track.
-                if(!CompletionPolicy.mayAdvance(playbackGate,audioFocusGate)){
-                    if("NOW".equals(screen))footer.setText("Paused. Select Play to continue.");
-                    return;
-                }
-                int next=state.nextIndex(p.id,key);
-                if(next>=0)playFrom(p,next,false);else {stopPlayer();showNow();}
-            });
-            player.setOnErrorListener((mp,what,extra)->{
-                // Ignore callbacks belonging to a replaced or released player.
-                if(player!=mp)return true;
-                stopPlayer();message("Playback failed. Original audio not modified.");return true;
-            });
-            player.prepareAsync();showNow();
-        }catch(Exception e){stopPlayer();message("Cannot open track: "+e.getClass().getSimpleName());}
+        state=playback.state;activeBook=playback.activeBook;showNow();
     }
     private void showNow(){
         reset("NOW");PlayerState.Progress p=state.progress(activeBook);
         item("Play / Pause",()->{
-            if(player==null||!prepared){message("No prepared track");return;}
-            if(player.isPlaying()){
-                playbackGate.requestPause();player.pause();saveActivePosition();persist();abandonAudioFocus();
-            } else if(requestAudioFocusForExplicitPlay(activeBook)) {
-                playbackGate.requestPlay();if(canStartPlayback())player.start();
-            } else {
-                playbackGate.requestPause();
-                message("Audio unavailable during a call or another audio interruption. Playback remains paused.");
-            }
-            showNow();
+            if(playback==null || !playback.isPrepared()){message("No prepared track");return;}
+            if(!playback.isPlaying())startForegroundService(new Intent(this,KeypadPlaybackService.class));
+            playback.toggle();showNow();
         });
         item("◀ Back 10 seconds",()->seekBy(-10000));
         item("Forward 10 seconds ▶",()->seekBy(10000));
         if(activeBook){item("+ Save timestamp bookmark",()->prompt("Bookmark name",clock(currentPosition()),name->{
-            state.addBookmark(p.trackKey,name,currentPosition());persist();showNow();
+            long at=currentPosition();
+            if(commitMutation("Add bookmark",next->next.addBookmark(p.trackKey,name,at)))showNow();
         }));item("Browse / edit bookmarks",this::showBookmarks);}
         item("← Home (pauses)",()->{pauseForNavigation();showHome();});
         PlayerState.Track t=state.tracks.get(p.trackKey);
         render(t==null?"Now playing":t.title,"No autoplay on relaunch. D-pad Center activates actions.");
     }
     private long currentPosition(){
-        if(player!=null&&prepared){try{return player.getCurrentPosition();}catch(Exception ignored){}}
-        return state.progress(activeBook).positionMs;
+        return playback==null?0:playback.position();
     }
     private void seekBy(long delta){
-        if(player==null||!prepared){message("Track not prepared");return;}
-        PlayerState.Progress p=state.progress(activeBook);
-        try{long pos=state.seek(p.trackKey,currentPosition(),delta);
-            player.seekTo((int)Math.min(Integer.MAX_VALUE,pos));state.savePosition(activeBook,pos);persist();showNow();
-        }catch(Exception e){message("Cannot seek: "+e.getMessage());}
+        if(playback==null || !playback.isPrepared()){message("Track not prepared");return;}
+        playback.seek(delta);showNow();
     }
     private void showBookmarks(){
         reset("BOOKMARKS");PlayerState.Progress p=state.progress(true);
@@ -365,112 +596,59 @@ public final class KeypadPlayerActivity extends Activity {
     private void bookmarkActions(int index){
         PlayerState.Bookmark b=state.bookmarks.get(index);reset("BOOKMARK_ACTIONS");
         item("Jump to bookmark",()->{
-            if(player!=null&&prepared){player.seekTo((int)Math.min(Integer.MAX_VALUE,b.positionMs));
-                state.savePosition(true,b.positionMs);persist();showNow();}
+            if(playback!=null && playback.isPrepared()){
+                playback.seekAbsolute(b.positionMs);showNow();}
             else message("Open audiobook first");
         });
-        item("Rename bookmark",()->prompt("Bookmark name",b.name,name->{state.renameBookmark(index,name);persist();showBookmarks();}));
+        item("Rename bookmark",()->prompt("Bookmark name",b.name,name->{if(commitMutation("Rename bookmark",next->next.renameBookmark(index,name)))showBookmarks();}));
         item("Delete bookmark",()->new AlertDialog.Builder(this).setMessage("Delete this bookmark?")
             .setNegativeButton("Cancel",(d,w)->{}).setPositiveButton("Delete",(d,w)->{
-                state.deleteBookmark(index);persist();showBookmarks();
+                if(commitMutation("Delete bookmark",next->next.deleteBookmark(index)))showBookmarks();
             }).show());
         item("← Back",this::showBookmarks);render(b.name,"Bookmark changes do not change the audio file.");
     }
-    private void saveActivePosition(){
-        if(player!=null&&prepared){try{state.savePosition(activeBook,player.getCurrentPosition());}catch(Exception ignored){}}
+    private void saveActivePosition(){if(playback!=null)playback.savePosition();}
+    private boolean stopPlayer(){return playback!=null && playback.stopPlayer();}
+    /** Edits a decoded copy, writes it durably, then publishes one shared state. */
+    private boolean commitMutation(String label,java.util.function.Consumer<PlayerState> edit){
+        if(recoveryMode || playback==null){message(label+" blocked: playback state unavailable.");return false;}
+        try{
+            PlayerState next=StateMutation.prepareAndSave(state,edit,this::writeStateBytes);
+            if(next==state){message(label+" not saved; previous data retained.");return false;}
+            playback.state=next;state=next;return true;
+        }catch(Exception e){message(label+" not applied: "+e.getClass().getSimpleName());return false;}
     }
-    private void stopPlayer(){
-        playbackGate.requestPause();
-        saveActivePosition();persist();
-        abandonAudioFocus();
-        // Detach first so late callbacks cannot affect a replacement player.
-        MediaPlayer old=player;
-        player=null;
-        prepared=false;
-        if(old!=null){
-            try{old.reset();}catch(Exception ignored){}
-            finally{try{old.release();}catch(Exception ignored){}}
-        }
-    }
+    private boolean writeStateBytes(byte[] data){return playback!=null && playback.writeStateBytes(data);}
     private boolean persist(){
-        if(recoveryMode)return false;
-        FileOutputStream out=null;
-        try{byte[] data=StateCodec.encode(state);out=store.startWrite();out.write(data);store.finishWrite(out);return true;}
-        catch(Exception e){if(out!=null)store.failWrite(out);message("Could not save player state; preserve app data: "+e.getClass().getSimpleName());return false;}
+        if(playback!=null && playback.persist())return true;
+        message("Could not save player state; preserve app data.");return false;
     }
-    private void pauseForNavigation(){
-        playbackGate.requestPause();
-        if(player!=null && prepared && player.isPlaying())player.pause();
-        saveActivePosition();persist();
-        abandonAudioFocus();
-    }
-    /** Android 10 audio focus: loss pauses the playhead, never merely ducks/mutes.
-     *  The app does not play in background yet; any future playback Service must
-     *  own this same focus lifecycle before enabling background playback.
-     */
+    private void pauseForNavigation(){if(playback!=null)playback.pause();}
     private static AudioAttributes mediaAttributes(boolean book){
         return new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(book?AudioAttributes.CONTENT_TYPE_SPEECH:AudioAttributes.CONTENT_TYPE_MUSIC).build();
     }
-    private boolean canStartPlayback(){
-        return playbackGate.canStart() && audioFocusGate.canStart();
-    }
     private boolean requestAudioFocusForExplicitPlay(boolean book){
-        if(audioManager==null){audioFocusGate.onAbandon();return false;}
-        // This is an extra conservative guard, not a substitute for real call testing.
-        int mode=audioManager.getMode();
-        if(mode==AudioManager.MODE_RINGTONE || mode==AudioManager.MODE_IN_CALL ||
-                mode==AudioManager.MODE_IN_COMMUNICATION){
-            abandonAudioFocus();return false;
-        }
-        abandonAudioFocus();
-        final long requestEpoch=++focusEpoch;
-        audioFocusRequest=new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(mediaAttributes(book))
-            .setWillPauseWhenDucked(true)
-            .setOnAudioFocusChangeListener(change->{
-                if(requestEpoch==focusEpoch)onAudioFocusChanged(change);
-            },timer)
-            .build();
-        int result=audioManager.requestAudioFocus(audioFocusRequest);
-        boolean granted=result==AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
-        audioFocusGate.onExplicitRequest(granted);
-        if(!granted)abandonAudioFocus();
-        return granted;
+        return playback!=null && playback.requestFocus(book);
     }
-    private void onAudioFocusChanged(int change){
-        if(change==AudioManager.AUDIOFOCUS_GAIN){
-            audioFocusGate.onGain(); // Explicit Play still required after interruption.
-            return;
-        }
-        if(change==AudioManager.AUDIOFOCUS_LOSS ||
-                change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
-                change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK){
-            audioFocusGate.onLoss();
-            playbackGate.requestPause();
-            if(player!=null && prepared){
-                try{if(player.isPlaying())player.pause();}catch(IllegalStateException ignored){}
-            }
-            saveActivePosition();
-            persist();
-            if("NOW".equals(screen))footer.setText("Interrupted: paused. Select Play after the call.");
-        }
+    private void abandonAudioFocus(){if(playback!=null)playback.abandonFocus();}
+    @Override public void onResume(){super.onResume();}
+    // Screen sleep, flip close and app switching MUST NOT imply explicit Home pause.
+    @Override public void onPause(){stopPreview();super.onPause();}
+    @Override public void onDestroy(){
+        timer.removeCallbacks(tick);stopPreview();
+        if(playback!=null)playback.setListener(null);
+        if(bound){unbindService(serviceConnection);bound=false;}
+        super.onDestroy();
     }
-    private void abandonAudioFocus(){
-        ++focusEpoch;
-        audioFocusGate.onAbandon();
-        if(audioManager!=null && audioFocusRequest!=null){
-            audioManager.abandonAudioFocusRequest(audioFocusRequest);
-        }
-        audioFocusRequest=null;
-    }
-    @Override public void onResume(){super.onResume();playbackGate.onResume();}
-    @Override public void onPause(){pauseForNavigation();playbackGate.onPause();super.onPause();}
-    @Override public void onDestroy(){timer.removeCallbacks(tick);stopPlayer();super.onDestroy();}
     @Override public void onBackPressed(){
         switch(screen){
             case "HOME":super.onBackPressed();break;
             case "PLAYLISTS":case "HELP":showHome();break;
+            case "ALPHABET":restoreLibrary();break;
+            case "LIBRARY_TRACK":returnToLibrary();break;
+            case "LIBRARY_ADD":showLibraryTrackActions(libraryTrackKey);break;
+            case "PREVIEW":returnFromPreview();break;
             case "NOW":pauseForNavigation();showHome();break;
             case "DETAIL":showPlaylists(browsingBook);break;
             case "TRACK_ACTIONS":case "LIBRARY":if(adding){adding=false;showDetail();}else if("TRACK_ACTIONS".equals(screen))showDetail();else showHome();break;
