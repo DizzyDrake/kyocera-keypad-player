@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.*;
 import android.view.KeyEvent;
 import java.util.List;
+import java.util.Random;
 import android.util.AtomicFile;
 import org.roarin.kyocerakeypad.core.*;
 import java.io.*;
@@ -27,7 +28,15 @@ public final class KeypadPlaybackService extends Service {
     static final String ACTION_NEXT = "org.roarin.kyocerakeypad.WQB405_NEXT";
     static final String ACTION_PREVIOUS = "org.roarin.kyocerakeypad.WQB405_PREVIOUS";
     private final MediaTransportSequencer transport=new MediaTransportSequencer(350);
-    // Owner-specific double seek is intentionally OFF pending actual headset traces.
+    // Experimental double-NEXT is opt-in. A volume-down tap is NOT remapped.
+    private final Runnable mediaFlush = () -> {
+        for (MediaTransportSequencer.Action action : transport.flush(SystemClock.elapsedRealtime()))
+            performMediaAction(action);
+    };
+    private final PlaylistPlaybackOrder playbackOrder = new PlaylistPlaybackOrder();
+    private final Random shuffleRandom = new Random();
+    private boolean shuffleEnabled, experimentalDoubleNext;
+    private PlaylistPlaybackOrder.Repeat repeatMode = PlaylistPlaybackOrder.Repeat.OFF;
     final IBinder binder = new LocalBinder();
     final Handler handler = new Handler(Looper.getMainLooper());
     PlayerState state = new PlayerState();
@@ -44,6 +53,22 @@ public final class KeypadPlaybackService extends Service {
     private String lastError = "";
     private Listener listener;
     private long lastSaveAt;
+    // Timer uses elapsedRealtime (includes screen-off sleep), never wall-clock changes.
+    // It is deliberately NOT restored after process death: no stale timer or autoplay.
+    private long sleepDeadlineElapsed = -1L;
+    private String sleepPlaylistId = "";
+    private boolean sleepBook;
+    private int audiobookRewindSeconds;
+    private final Runnable sleepTimerExpiry = new Runnable() { @Override public void run() {
+        if (sleepDeadlineElapsed < 0L) return;
+        long remaining=SleepTimerPolicy.remainingMs(SystemClock.elapsedRealtime(),sleepDeadlineElapsed);
+        if (remaining > 0L) { handler.postDelayed(this,remaining);return; }
+        PlayerState.Progress p=state.progress(activeBook);
+        boolean sameSession=(activeBook==sleepBook && sleepPlaylistId.equals(p.playlistId));
+        clearSleepTimer();
+        if (sameSession) pause(); // Durably save playhead; never restart audio.
+        else notifyChanged(); // A changed session must not inherit an old timer.
+    }};
 
     public final class LocalBinder extends Binder {
         public KeypadPlaybackService service() { return KeypadPlaybackService.this; }
@@ -68,6 +93,16 @@ public final class KeypadPlaybackService extends Service {
                 state=StateCodec.decode(bytes.toByteArray());
             } catch (Exception e) { recoveryMode=true; }
         }
+        android.content.SharedPreferences settings=getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE);
+        shuffleEnabled=settings.getBoolean("shuffle",false);
+        String savedRepeat=settings.getString("repeat","OFF");
+        try { repeatMode=PlaylistPlaybackOrder.Repeat.valueOf(savedRepeat); }
+        catch (IllegalArgumentException ignored) { repeatMode=PlaylistPlaybackOrder.Repeat.OFF; }
+        experimentalDoubleNext=settings.getBoolean("double_next_seek",false);
+        audiobookRewindSeconds=settings.getInt("audiobook_resume_rewind_seconds",0);
+        if(audiobookRewindSeconds!=0 && audiobookRewindSeconds!=5 && audiobookRewindSeconds!=10)
+            audiobookRewindSeconds=0;
+        transport.setDoubleSeekEnabled(experimentalDoubleNext);
         audioManager=(AudioManager)getSystemService(Context.AUDIO_SERVICE);
         playbackGate.onResume(); // Service lifecycle is independent of screen visibility.
         NotificationChannel channel=new NotificationChannel(CHANNEL,"Keypad playback",NotificationManager.IMPORTANCE_LOW);
@@ -89,6 +124,11 @@ public final class KeypadPlaybackService extends Service {
                     if(mapped==MediaTransportSequencer.Key.UNKNOWN)return false;
                     for(MediaTransportSequencer.Action action:transport.onPress(mapped,SystemClock.elapsedRealtime()))
                         performMediaAction(action);
+                    handler.removeCallbacks(mediaFlush);
+                    if (transport.hasPending()) {
+                        long delay=Math.max(1,transport.pendingDeadlineMs()-SystemClock.elapsedRealtime());
+                        handler.postDelayed(mediaFlush,delay);
+                    }
                 }
                 return true; // Consume corresponding UP/repeats, avoid duplicate dispatch.
             }
@@ -117,7 +157,7 @@ public final class KeypadPlaybackService extends Service {
             case KeyEvent.KEYCODE_MEDIA_PLAY: return MediaTransportSequencer.Key.PLAY;
             case KeyEvent.KEYCODE_MEDIA_PAUSE: return MediaTransportSequencer.Key.PAUSE;
             case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-            case KeyEvent.KEYCODE_HEADSETHOOK: return MediaTransportSequencer.Key.PLAY_PAUSE;
+            case KeyEvent.KEYCODE_HEADSETPHOOK: return MediaTransportSequencer.Key.PLAY_PAUSE;
             case KeyEvent.KEYCODE_MEDIA_NEXT: return MediaTransportSequencer.Key.NEXT;
             case KeyEvent.KEYCODE_MEDIA_PREVIOUS: return MediaTransportSequencer.Key.PREVIOUS;
             case KeyEvent.KEYCODE_MEDIA_STOP: return MediaTransportSequencer.Key.STOP;
@@ -204,7 +244,95 @@ public final class KeypadPlaybackService extends Service {
         updateMediaSession();notifyChanged();
     }
     void toggle(){if(isPlaying())pause();else explicitPlay();}
+    // Snapshot for display only. Playback order is service-owned and not re-shuffled by UI renders.
+    List<String> playbackOrderSnapshot(){return playbackOrder.snapshot();}
+    boolean shuffleEnabled(){return shuffleEnabled;}
+    PlaylistPlaybackOrder.Repeat repeatMode(){return repeatMode;}
+    boolean experimentalDoubleNext(){return experimentalDoubleNext;}
+    int audiobookRewindSeconds(){return audiobookRewindSeconds;}
+    void cycleAudiobookRewind(){
+        audiobookRewindSeconds=audiobookRewindSeconds==0?5:(audiobookRewindSeconds==5?10:0);
+        getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit()
+            .putInt("audiobook_resume_rewind_seconds",audiobookRewindSeconds).apply();
+        notifyChanged();
+    }
+    long sleepTimerRemainingMs(){
+        return sleepDeadlineElapsed<0L?0L:SleepTimerPolicy.remainingMs(SystemClock.elapsedRealtime(),sleepDeadlineElapsed);
+    }
+    boolean sleepTimerArmed(){return sleepDeadlineElapsed>=0L;}
+    boolean setSleepTimerMinutes(String minutes){
+        if(!isPrepared()){error("Start a track before setting the sleep timer");return false;}
+        final long duration;
+        try{duration=SleepTimerPolicy.durationMs(minutes);}catch(IllegalArgumentException e){error(e.getMessage());return false;}
+        long now=SystemClock.elapsedRealtime();
+        if(duration>Long.MAX_VALUE-now){error("Timer duration too large");return false;}
+        clearSleepTimer();
+        PlayerState.Progress p=state.progress(activeBook);
+        sleepPlaylistId=p.playlistId;sleepBook=activeBook;
+        sleepDeadlineElapsed=now+duration;
+        handler.postDelayed(sleepTimerExpiry,duration);
+        notifyChanged();return true;
+    }
+    void cancelSleepTimer(){clearSleepTimer();notifyChanged();}
+    private void clearSleepTimer(){
+        handler.removeCallbacks(sleepTimerExpiry);
+        sleepDeadlineElapsed=-1L;sleepPlaylistId="";
+    }
+    void setShuffle(boolean enabled){
+        shuffleEnabled=enabled;
+        getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit().putBoolean("shuffle",enabled).apply();
+        PlayerState.Progress progress=state.progress(activeBook);
+        PlayerState.Playlist p=state.playlists.get(progress.playlistId);
+        if (p!=null && p.entries.contains(progress.trackKey))
+            playbackOrder.start(p.id,p.entries,progress.trackKey,shuffleEnabled,shuffleRandom);
+        notifyChanged();
+    }
+    /**
+     * WQB430: refresh non-shuffled session navigation after a durable playlist
+     * reorder. Do not restart audio, change the current track or seek position.
+     * With shuffle ON, the current shuffled session order intentionally remains.
+     * If changing this, check PlaylistPlaybackOrder.matches/next and Move Mode.
+     */
+    void onPlaylistOrderSaved(String playlistId){
+        PlayerState.Progress progress=state.progress(activeBook);
+        PlayerState.Playlist p=state.playlists.get(playlistId);
+        if(!shuffleEnabled && p!=null && playlistId.equals(progress.playlistId) &&
+                p.entries.contains(progress.trackKey))
+            playbackOrder.start(p.id,p.entries,progress.trackKey,false,shuffleRandom);
+        notifyChanged();
+    }
+    void cycleRepeat(){
+        switch(repeatMode){
+            case OFF:repeatMode=PlaylistPlaybackOrder.Repeat.PLAYLIST;break;
+            case PLAYLIST:repeatMode=PlaylistPlaybackOrder.Repeat.TRACK;break;
+            default:repeatMode=PlaylistPlaybackOrder.Repeat.OFF;
+        }
+        getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit()
+            .putString("repeat",repeatMode.name()).apply();
+        notifyChanged();
+    }
+    void setExperimentalDoubleNext(boolean enabled){
+        handler.removeCallbacks(mediaFlush);
+        for(MediaTransportSequencer.Action action:transport.setDoubleSeekEnabled(enabled))
+            performMediaAction(action);
+        experimentalDoubleNext=enabled;
+        getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit()
+            .putBoolean("double_next_seek",enabled).apply();
+    }
+    boolean playPlaylist(String playlistId){
+        PlayerState.Playlist p=state.playlists.get(playlistId);
+        if(p==null || p.entries.isEmpty()){error("Playlist has no tracks");return false;}
+        String first=p.entries.get(shuffleEnabled?shuffleRandom.nextInt(p.entries.size()):0);
+        playbackOrder.start(p.id,p.entries,first,shuffleEnabled,shuffleRandom);
+        return playFromInternal(p.id,p.entries.indexOf(first),false);
+    }
     boolean playFrom(String playlistId,int index,boolean resume){
+        PlayerState.Playlist p=state.playlists.get(playlistId);
+        if(p==null || index<0 || index>=p.entries.size()){error("Playlist entry missing");return false;}
+        playbackOrder.start(p.id,p.entries,p.entries.get(index),shuffleEnabled,shuffleRandom);
+        return playFromInternal(playlistId,index,resume);
+    }
+    private boolean playFromInternal(String playlistId,int index,boolean resume){
         lastError="";
         if(recoveryMode){error("Saved state requires recovery");return false;}
         PlayerState.Playlist p=state.playlists.get(playlistId);
@@ -215,6 +343,13 @@ public final class KeypadPlaybackService extends Service {
         long start=0;
         PlayerState.Progress before=state.progress(p.audiobook);
         if(resume && before.playlistId.equals(p.id) && before.trackKey.equals(key))start=before.positionMs;
+        // Keep the canonical saved position until playback actually starts.
+        final long audibleStart=(resume && p.audiobook)
+            ?SleepTimerPolicy.rewindPosition(start,audiobookRewindSeconds):start;
+        // Timer follows automatic tracks within the same playlist, but cannot
+        // silently act on a newly selected playlist or Music/Audiobook session.
+        if(sleepDeadlineElapsed>=0L && (sleepBook!=p.audiobook || !sleepPlaylistId.equals(p.id)))
+            clearSleepTimer();
         if(!stopPlayer()){error("Previous position could not be saved; playback stopped");return false;}
         if(!requestFocus(p.audiobook)){error("Audio unavailable during call or interruption");return false;}
         final boolean oldBook=activeBook;
@@ -234,20 +369,26 @@ public final class KeypadPlaybackService extends Service {
             mp.setOnPreparedListener(ready->{
                 if(player!=ready)return;
                 prepared=true;
-                long at=state.progress(activeBook).positionMs;
+                long at=audibleStart;
                 try {
                     if(at>0){ready.setOnSeekCompleteListener(seeked->{
                         if(player!=seeked)return;
                         try {
                             seeked.setOnSeekCompleteListener(null);
-                            if(canStart())seeked.start();
+                            if(canStart()){
+                                seeked.start();
+                                commitAudibleResumePosition(at);
+                            }
                             updateMediaSession();notifyChanged();
                         } catch (Exception e) {
                             stopPlayer();restoreFailedSelection(p.audiobook,p.id,key,oldProgress,oldBook);
                             error("Playback could not start");
                         }
                     });ready.seekTo((int)Math.min(Integer.MAX_VALUE,at));}
-                    else if(canStart())ready.start();
+                    else if(canStart()){
+                        ready.start();
+                        commitAudibleResumePosition(at);
+                    }
                     updateMediaSession();notifyChanged();
                 } catch (Exception e) {
                     stopPlayer();restoreFailedSelection(p.audiobook,p.id,key,oldProgress,oldBook);
@@ -258,9 +399,19 @@ public final class KeypadPlaybackService extends Service {
                 if(player!=done || !CompletionPolicy.mayAdvance(playbackGate,focusGate))return;
                 savePosition();
                 if (!persist()) { stopPlayer();error("Position could not be saved; playback stopped");return; }
-                CompletionPolicy.NextSelection next=CompletionPolicy.nextSelection(state,p.id,key,p.audiobook);
-                if(next==null){stopPlayer();return;}
-                playFrom(next.playlist.id,next.index,false);
+                // Guard stale completion after playlist edits and focus changes.
+                PlayerState.Progress progress=state.progress(p.audiobook);
+                PlayerState.Playlist live=state.playlists.get(p.id);
+                if(live==null || !p.id.equals(progress.playlistId) || !key.equals(progress.trackKey)){
+                    stopPlayer();return;
+                }
+                if(!playbackOrder.matches(p.id,live.entries,key))
+                    playbackOrder.start(p.id,live.entries,key,shuffleEnabled,shuffleRandom);
+                String nextKey=playbackOrder.next(key,1,repeatMode,true);
+                if(nextKey==null){stopPlayer();return;}
+                int nextIndex=live.entries.indexOf(nextKey);
+                if(nextIndex<0 || !state.tracks.containsKey(nextKey)){stopPlayer();return;}
+                playFromInternal(live.id,nextIndex,false);
             });
             mp.setOnErrorListener((failed,what,extra)->{
                 if(player!=failed)return true;
@@ -272,6 +423,14 @@ public final class KeypadPlaybackService extends Service {
         }catch(Exception e){
             stopPlayer();restoreFailedSelection(p.audiobook,p.id,key,oldProgress,oldBook);
             error("Cannot open track: "+e.getClass().getSimpleName());return false;
+        }
+    }
+    private void commitAudibleResumePosition(long startedAt){
+        // Only record the rewound offset after MediaPlayer.start() succeeded.
+        // Failed prepare/start leaves the previous durable progress available.
+        if(startedAt!=state.progress(activeBook).positionMs){
+            state.savePosition(activeBook,startedAt);
+            if(!persist()){pause();error("Resumed position could not be saved; playback paused");}
         }
     }
     private void restoreFailedSelection(boolean book,String id,String key,PlayerState.Progress previous,boolean previousBook){
@@ -300,9 +459,12 @@ public final class KeypadPlaybackService extends Service {
         PlayerState.Progress p=state.progress(activeBook);
         PlayerState.Playlist pl=state.playlists.get(p.playlistId);
         if(pl==null)return;
-        int next=pl.entries.indexOf(p.trackKey)+delta;
-        if(next<0 || next>=pl.entries.size())return; // No wrap at boundaries.
-        playFrom(pl.id,next,false);
+        if(!playbackOrder.matches(pl.id,pl.entries,p.trackKey))
+            playbackOrder.start(pl.id,pl.entries,p.trackKey,shuffleEnabled,shuffleRandom);
+        String nextKey=playbackOrder.next(p.trackKey,delta,repeatMode,false);
+        if(nextKey==null)return;
+        int next=pl.entries.indexOf(nextKey);
+        if(next>=0)playFromInternal(pl.id,next,false);
     }
     boolean previewFocusGranted(){return focusGate.canStart();}
     boolean requestFocus(boolean book){
@@ -389,7 +551,7 @@ public final class KeypadPlaybackService extends Service {
     private void notifyChanged(){if(listener!=null)listener.onPlaybackChanged();}
     private void error(String msg){lastError=msg;if(listener!=null)listener.onPlaybackError(msg);}
     @Override public void onDestroy(){
-        handler.removeCallbacks(saveTick);transport.close();stopPlayer();
+        clearSleepTimer();handler.removeCallbacks(saveTick);handler.removeCallbacks(mediaFlush);transport.close();stopPlayer();
         if(mediaSession!=null){mediaSession.setActive(false);mediaSession.release();mediaSession=null;}
         super.onDestroy();
     }
