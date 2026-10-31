@@ -157,7 +157,7 @@ public final class KeypadPlaybackService extends Service {
             case KeyEvent.KEYCODE_MEDIA_PLAY: return MediaTransportSequencer.Key.PLAY;
             case KeyEvent.KEYCODE_MEDIA_PAUSE: return MediaTransportSequencer.Key.PAUSE;
             case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-            case KeyEvent.KEYCODE_HEADSETPHOOK: return MediaTransportSequencer.Key.PLAY_PAUSE;
+            case KeyEvent.KEYCODE_HEADSETHOOK: return MediaTransportSequencer.Key.PLAY_PAUSE;
             case KeyEvent.KEYCODE_MEDIA_NEXT: return MediaTransportSequencer.Key.NEXT;
             case KeyEvent.KEYCODE_MEDIA_PREVIOUS: return MediaTransportSequencer.Key.PREVIOUS;
             case KeyEvent.KEYCODE_MEDIA_STOP: return MediaTransportSequencer.Key.STOP;
