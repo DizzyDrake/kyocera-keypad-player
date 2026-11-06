@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <application android:allowBackup="false" android:label="Keypad Sandbox WQA365" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+    <application android:allowBackup="false" android:label="Dumbplayer" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <service android:name=".KeypadPlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <activity android:name=".KeypadPlayerActivity" android:exported="true" android:screenOrientation="portrait">
             <intent-filter>

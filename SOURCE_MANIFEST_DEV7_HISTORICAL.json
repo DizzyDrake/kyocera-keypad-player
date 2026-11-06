@@ -1,0 +1,328 @@
+{
+  "schema": "source-manifest-v1",
+  "task_id": "WQ-20261030-002",
+  "run_id": "WQB429_20261030T1132Z",
+  "parent_sha256": "76d8d4bd57a0fe8ac6655737ae4b6b6b237111b26ef8620fc463c616776232d3",
+  "entries": {
+    "00_READ_FIRST_DEV4.md": {
+      "sha256": "114abee04825664015a3063e67bfb205390c5d9133f2fe8269cabf1f3d989857",
+      "bytes": 2917
+    },
+    "OWNER_TRIAL_WQA355.md": {
+      "sha256": "1001488ed37a0a1d171f50c75f1c7409f4706669dc05adddf8dca0c50d687cb3",
+      "bytes": 1858
+    },
+    "OWNER_TRIAL_WQA357.md": {
+      "sha256": "2ccbd0ae271fecc7e8c7650f21f4a08b94c761fdb46d2b3438a1ed33f76007bb",
+      "bytes": 1523
+    },
+    "OWNER_TRIAL_WQA359.md": {
+      "sha256": "05c6b65db5b970fd940b43ed994a19f9d07da7e9f3a8f731ec1d9385d0c54bc2",
+      "bytes": 2214
+    },
+    "PARENT_DEV4_SOURCE_MANIFEST_HISTORICAL.json": {
+      "sha256": "0418693fb2f9a4ec1cf01b5775be56b9b0aa729247639547c30269a44f726ce5",
+      "bytes": 7323
+    },
+    "PARENT_SOURCE_MANIFEST_WQA355.json": {
+      "sha256": "20e85ed9e7c4e40e42e9713339de3f7690bebfa4a97dad614a6251e25bf7c0b8",
+      "bytes": 4863
+    },
+    "PARENT_SOURCE_MANIFEST_WQA359.json": {
+      "sha256": "362ef616a66a42bbb23fca88d58f017df3b0f267f7145f3cfc761c6b9f2604c9",
+      "bytes": 5456
+    },
+    "PARENT_SOURCE_MANIFEST_WQC063.json": {
+      "sha256": "425df6e235a6f61ff0b8f94a108de24ea97480d1c9b2934df97153dc50025d97",
+      "bytes": 5080
+    },
+    "PROVENANCE_WQA365_SOURCE_MANIFEST_HISTORICAL.json": {
+      "sha256": "1959e1c264d98284628be12ffc1ef4b2e9b4e89dd8ac065fe3cc31ec188e6f5d",
+      "bytes": 5944
+    },
+    "README.md": {
+      "sha256": "b57feedd4e6568f546f1d5deeccedc7c62826eae8a847e624d5b86b83c4c2a8e",
+      "bytes": 5378
+    },
+    "README_DEV4_HISTORICAL.md": {
+      "sha256": "35c2dad46abe71adbe01278070630a565d3ebaadd93ad329f5dc486909c26de9",
+      "bytes": 6494
+    },
+    "README_DEV5_HISTORICAL.md": {
+      "sha256": "6b9661ee479deb41fbac01f8d8acbb79844432b8d4ba25d3998f680d8e511bf2",
+      "bytes": 4054
+    },
+    "README_DEV6_HISTORICAL.md": {
+      "sha256": "c5c8247b8942db31e0474ba5afa7d4a90da7143cdc41a4200e3536c0bc51b473",
+      "bytes": 4767
+    },
+    "README_GITHUB_DEV4_HISTORICAL.md": {
+      "sha256": "38a0415833604d935c3fa3bd0bfc4edcf8e52d9b77096ebaa08aad389c9331f4",
+      "bytes": 2409
+    },
+    "README_WQA365_DISPOSABLE_SIDE_BY_SIDE_TRIAL.md": {
+      "sha256": "5c45634045cfd402ed6ea8ff98b9a1c39c6200f00bcf780957bf72a53259ddd9",
+      "bytes": 3660
+    },
+    "README_WQB405_UNBUILT_SERVICE_PROTOTYPE.md": {
+      "sha256": "b12fae99be53489517d5e42e9ebd7f8f72f15835fc6a6c00e9afce15a319aa8a",
+      "bytes": 5850
+    },
+    "SOURCE_MANIFEST_DEV5_HISTORICAL.json": {
+      "sha256": "ed844ab680098f31065289da68af48672bc7db28545b8bc015f9d80505a9b49b",
+      "bytes": 11810
+    },
+    "SOURCE_MANIFEST_DEV6_HISTORICAL.json": {
+      "sha256": "54db7a3ca084aadc4deffdb90a7749a19012ad11e3878b87d49866a8c6ac9d88",
+      "bytes": 13056
+    },
+    "WQC063_OWNER_HANDOFF.md": {
+      "sha256": "8f3795716f4aabaaf23b96c5162b60766fe1b7770e73de6bee2bbd8b13cd0baa",
+      "bytes": 1411
+    },
+    "app/build.gradle": {
+      "sha256": "5c633a38560dd713930995513976aba5cde97fad366c644ccf485f76d8188d6e",
+      "bytes": 894
+    },
+    "app/src/main/AndroidManifest.xml": {
+      "sha256": "36dde4a4e253edbd793aaf8f835115625584f292fe5e4141865e855126790259",
+      "bytes": 1015
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlaybackService.java": {
+      "sha256": "eb8a316b05841dd4bf67d24931c930ef9d0c5d45bfa186af699e51e841cc1c9d",
+      "bytes": 31271
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java": {
+      "sha256": "1747fa9bd32f3fa1e335e6fa5c71d0dd407561dff9b9d1c98da3727d409c4a8a",
+      "bytes": 48599
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java.orig": {
+      "sha256": "9eae65956b67632ffc4297d013c974ebee129e2cd14810031c21aa3e8addc796",
+      "bytes": 29991
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/AlphabetJump.java": {
+      "sha256": "a446237a11080fdd9d499791bf2f04de2a5d5c81bc5e3e2812f965a507315bfb",
+      "bytes": 1621
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/AudioFocusGate.java": {
+      "sha256": "5cde04242ab000204e9123c1bf87c3978dea2b55547e28059e56d98e9d37b9f6",
+      "bytes": 1027
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/CompletionPolicy.java": {
+      "sha256": "bdefef1d3bd778a13bce58e0c9087bc4efcb29677cbaf4642afcdfe87f90a5a9",
+      "bytes": 2040
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/FailedOpenRollback.java": {
+      "sha256": "562f90020b859feaff0ce40edb814b5f46b9a60457a43e68db28943331129993",
+      "bytes": 3429
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/MediaTransportSequencer.java": {
+      "sha256": "4d8e9648f51e1361eb6c139891a870ca238404b4be5af27fe735af0d5e9bcdfa",
+      "bytes": 3914
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/NowPlayingNavigation.java": {
+      "sha256": "2a5360df0b49da0aa9fd033ab58f2bb72c4a8d920381084362457edc4bf1bef2",
+      "bytes": 2609
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/PhoneSnapshotExport.java": {
+      "sha256": "cbfb7dfcb4f26c5050f2ca4fadd3d3b84b4b299edaae78747eebec453eefaa11",
+      "bytes": 8460
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/PlaybackGate.java": {
+      "sha256": "b4dab82002a5f41f022e677bf73d5c4364aa5e687370f0a2e140c694eb9955e1",
+      "bytes": 662
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/PlayerState.java": {
+      "sha256": "ca99f925ee66d3d3bd9db64e326797edf28311f1a08ad3863bff58361db25f24",
+      "bytes": 6767
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/PlaylistPlaybackOrder.java": {
+      "sha256": "889902ac85e94bca895310cc56cfad699944c3bcb91f6691307c59f22810e44a",
+      "bytes": 1936
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/SleepTimerPolicy.java": {
+      "sha256": "1ae8cd3182ec434d932a8002ed30b2393dd62a8c62dc8c3ab87e602bba17e56c",
+      "bytes": 1272
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/StateCodec.java": {
+      "sha256": "20bc9e0eeee4ad1310b6de557a81cccefa769fcbf13403f6e0b7ed8efc307489",
+      "bytes": 3484
+    },
+    "app/src/main/java/org/roarin/kyocerakeypad/core/StateMutation.java": {
+      "sha256": "e03a8639cbf6afd6656df67ddd39e63d822e6af498d257bc9550971db0daa4b0",
+      "bytes": 896
+    },
+    "build.gradle": {
+      "sha256": "fd4af6dfc5c96ac5f6742b33878cb2a880e2a7803f41aebedf4e357f9e3091ff",
+      "bytes": 69
+    },
+    "sample/fictional_phone_export.json": {
+      "sha256": "a7994aa9c46d4183068b8de1b4ec964c23af77676c0c7b47400115c9178ea3fe",
+      "bytes": 1265
+    },
+    "settings.gradle": {
+      "sha256": "5a8ba2fc4c19359da32a0a9dcbc58552d09ea4b910732ce83eb1b44c55cab958",
+      "bytes": 285
+    },
+    "tests/AlphabetJumpTests.java": {
+      "sha256": "ad6683dd441c1a3d0a5c3d72f60f53a4b272e8d2bbd9b3cf040a78f1389e13a6",
+      "bytes": 2338
+    },
+    "tests/AudioFocusGateTests.java": {
+      "sha256": "2900f1c8acf2481cd87a940532cc0ff86233dcd6d05490c73fad5d2af2dc745c",
+      "bytes": 3144
+    },
+    "tests/CompletionPolicyTests.java": {
+      "sha256": "526b425d025f18577d3116b50c9723e7bcb22a0cc2918e7ae0f4bdce54a4ba3b",
+      "bytes": 3475
+    },
+    "tests/CompletionSelectionTests.java": {
+      "sha256": "8cff7688805ae87080e0cec7c76c405fa8a5e8dcd7c0d2859f2b43f4d5f717d5",
+      "bytes": 3221
+    },
+    "tests/FailedOpenRollbackTests.java": {
+      "sha256": "066600cd0b45ec246a2236d046960f864e729be232527c946c13d601a6253f0c",
+      "bytes": 6542
+    },
+    "tests/FailedOpenSelectionTests.java": {
+      "sha256": "bd192abf74fbc4807d5aefb937b6e82c9a0377d9c4f48f066ee59945c1409209",
+      "bytes": 2671
+    },
+    "tests/MediaTransportSequencerTests.java": {
+      "sha256": "781bb674511eb315980351161647a2279712646b5fe3ebfe90e583b07278e92f",
+      "bytes": 3171
+    },
+    "tests/MutationCommitTests.java": {
+      "sha256": "74d98172ec5dc6bfe7e4cced56c73bc1fdb71d601d59b416888ff5d19c40aeca",
+      "bytes": 4190
+    },
+    "tests/NowPlayingNavigationTests.java": {
+      "sha256": "80583d92dffcc4c3f01850a50a6381521d094c9071989f9b00914963e5e6e1a0",
+      "bytes": 3215
+    },
+    "tests/PlaybackGateTests.java": {
+      "sha256": "50f91882546ac7a3a4f659e81e00455a8f4f90773dc56ba6bd814df9099d7505",
+      "bytes": 1370
+    },
+    "tests/PlaylistPlaybackOrderTests.java": {
+      "sha256": "e1b024f34c5192ce46ea87ba5cfbf3a1cd9542f8c63feb55071360df023aef7b",
+      "bytes": 3101
+    },
+    "tests/RollbackProgressTests.java": {
+      "sha256": "a6e1ec410808480e115752d446716e5eedea6bf1d12fa04a41c2eeacb76b2c62",
+      "bytes": 3535
+    },
+    "tests/SleepTimerPolicyTests.java": {
+      "sha256": "3575ccecdb5a3077129b2be0f177437a8024c4b7cd76ed7295d2bcc8ed29eda0",
+      "bytes": 1909
+    },
+    "tests/SnapshotExportTests.java": {
+      "sha256": "f83b70631ed16f4defe319e1a52baf7cbdbeb01e1ce0d90b591317786f4fe016",
+      "bytes": 5674
+    },
+    "tests/StateTests.java": {
+      "sha256": "7af6b6ba1f03e3f4028f85659380f906cbf5e6c8610c3140157e8400534a8958",
+      "bytes": 4510
+    },
+    "tests/check_alphabet_ui.py": {
+      "sha256": "fbee54cf99bcc229582ae9ba445db3e14a38c285892138d5e6fb97d57626be5f",
+      "bytes": 2048
+    },
+    "tests/check_android_source_guard.py": {
+      "sha256": "722ca98abe98795eca04e882ae0509695fdeecdd0c5c7caf7db27df19210f542",
+      "bytes": 1495
+    },
+    "tests/check_audio_focus_integration.py": {
+      "sha256": "61876b1092282ebc941a5da1955acec059fdf6070ed081b59628cb4a2f74c2ba",
+      "bytes": 2026
+    },
+    "tests/check_completion_policy.py": {
+      "sha256": "077ff2e6bca5e0a869f7eb543ee99e5178d4acf9818d71c2df34e40e9ac4b574",
+      "bytes": 1218
+    },
+    "tests/check_integrated_callback_guards.py": {
+      "sha256": "e653c72c8c4c8affa9d4f7f56476ebe2a5a6d52cb8a516b26b4f5d61ef1e1505",
+      "bytes": 2561
+    },
+    "tests/check_wqd059_ui_preview.py": {
+      "sha256": "57a9b2857c403f8e898a614406bbc809ae03b2da70d95e21a8bbe3203293835d",
+      "bytes": 4698
+    },
+    "tests/run_core_tests.sh": {
+      "sha256": "5404c720a08460b8e2f7cd98ca660c01faaa036fe362e33790226e7e02f2f510",
+      "bytes": 2120
+    },
+    "tests/run_dev5_feature_smoke.sh": {
+      "sha256": "e427466e99b79e818f013c4fac6940b778269098a6e3a05886423d8cd3e4cd3d",
+      "bytes": 601
+    },
+    "tests/run_dev6_feature_smoke.sh": {
+      "sha256": "2c6453fb3fe3e41f3223dd4ea7e10b0ed3727163ea110ccf02d93a199a956219",
+      "bytes": 674
+    },
+    "tests/run_dev7_feature_smoke.sh": {
+      "sha256": "3a815ff9620092ec2087c84f397a4d6ff86d56780c2826e9f5d38665f03746e3",
+      "bytes": 718
+    },
+    "tests/run_wqb405_offline.sh": {
+      "sha256": "5e5117ea25f4019389f9db79ad61c2947a266f72387a6c63d279c75fd0edc143",
+      "bytes": 514
+    },
+    "tests/test_dev5_playlist_wiring.py": {
+      "sha256": "d8dbc6fd59426eec7a038adaa7d88ee6761c08dde8e0ac779e2d9526bb5c06c0",
+      "bytes": 2596
+    },
+    "tests/test_dev6_playlist_compat.py": {
+      "sha256": "b1275d119301e075d11c13833b52c024f1afca39fa25cfc7d023634cdb4a6cff",
+      "bytes": 2612
+    },
+    "tests/test_dev6_wiring.py": {
+      "sha256": "4fed9d4ea3363ab8f9b5f117ce41aed69239782ff76e2125168334c991631b64",
+      "bytes": 2253
+    },
+    "tests/test_dev7_playlist_compat.py": {
+      "sha256": "b370fac8198a50e54311cb050e653007b19a5ab9d6b0e67e82a4132051d204d8",
+      "bytes": 2612
+    },
+    "tests/test_dev7_sleep_wiring.py": {
+      "sha256": "543cc47172d3769691b3f90c74b518914f1fd6efbfd1e5846f175753d1b62941",
+      "bytes": 2253
+    },
+    "tests/test_dev7_wiring.py": {
+      "sha256": "7a1d871d04d578cff9703eeccf04ef2b35d390cf37afd98185f7e82f3dc4d762",
+      "bytes": 2417
+    },
+    "tests/test_keypad_prompt_contract.py": {
+      "sha256": "9b4658622dafbefc9d64ff7c8c556fc3fea55a75abdbfc3e21b120f302ee2d3d",
+      "bytes": 2218
+    },
+    "tests/test_service_lifecycle_source.py": {
+      "sha256": "0c9693444b72dacbfdf4ae3d3c18f83bf4bea113b07f5b0338e4708a7649787e",
+      "bytes": 3110
+    },
+    "tests/test_wqa355_mutation_wiring.py": {
+      "sha256": "840a37cfa093c7df7943cbf840a992df407ca91808d7bf0e48be092993222da6",
+      "bytes": 2005
+    },
+    "tests/test_wqa357_completion_wiring.py": {
+      "sha256": "11c87dafc5c317d499d8568c0772f141ee4f25359a17cdf77c62b7a1ace50934",
+      "bytes": 1727
+    },
+    "tests/test_wqa359_activity_rollback.py": {
+      "sha256": "6f96eaa5298b72a3964426bff8c267103be4ca6dfdecc4c44232a1110073fba2",
+      "bytes": 1795
+    },
+    "tests/test_wqa365_sandbox_identity.py": {
+      "sha256": "9c623e0edbf7e9eba5f6b7c1cf985f92ca682a94ce5b08ea4909aaa46539124d",
+      "bytes": 3674
+    },
+    "tests/test_wqb405_service_wiring.py": {
+      "sha256": "da0675e88cc9e5e25aefcf1c20cba70b18915c902952251d097b20d4fbc9af55",
+      "bytes": 3920
+    },
+    "tests/test_wqe082_failed_open.py": {
+      "sha256": "be00f5ef7d88acbb3e109191fc04bbd45265c04ec541f0f64a2efe948474dab9",
+      "bytes": 3658
+    }
+  }
+}

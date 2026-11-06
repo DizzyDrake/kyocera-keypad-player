@@ -29,6 +29,7 @@ import org.roarin.kyocerakeypad.core.StateMutation;
 import org.roarin.kyocerakeypad.core.FailedOpenRollback;
 import org.roarin.kyocerakeypad.core.NowPlayingNavigation;
 import org.roarin.kyocerakeypad.core.PlaylistReorderDraft;
+import org.roarin.kyocerakeypad.core.HomeMenuOrder;
 import java.io.*;
 import java.util.*;
 
@@ -104,11 +105,16 @@ public final class KeypadPlayerActivity extends Activity {
     // Move Mode is a transient draft, not an edit of the playback service's state.
     // If this UI is changed, preserve explicit save/cancel and the selected track key.
     private PlaylistReorderDraft moveDraft;
+    // Separate app-private UI preference; never mutates playback playlists/progress.
+    private HomeMenuOrder homeOrder=HomeMenuOrder.defaults(), homeDraft;
+    private String homeMovingId="";
     private int detailTrackStartRow=-1;
     private long lastPersistAt=0L;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        homeOrder=HomeMenuOrder.parse(getSharedPreferences("dumbplayer_home_menu",MODE_PRIVATE)
+            .getString("order", ""));
         LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);
         box.setBackgroundColor(Color.parseColor("#F5F0EB"));
         heading=new TextView(this);heading.setTextSize(19);heading.setPadding(12,9,12,9);
@@ -148,32 +154,105 @@ public final class KeypadPlayerActivity extends Activity {
     }
     private void reset(String newScreen){screen=newScreen;labels.clear();actions.clear();}
     private void item(String label,Runnable action){labels.add(label);actions.add(action);}
+    private String homeLabel(String id){
+        switch(id){
+            case "resume_music":return "Resume music (explicit play)";
+            case "resume_audiobook":return "Resume audiobook (explicit play)";
+            case "music_playlists":return "Music playlists";
+            case "audiobook_playlists":return "Audiobook playlists";
+            case "browse_audio":return "Browse / search local audio";
+            case "listening_settings":return "Listening settings";
+            case "export_metadata":return "Export metadata for PC (manual)";
+            case "help":return "Help / controls";
+            case "about":return "About / version";
+            default:throw new IllegalArgumentException("Unknown home action: "+id);
+        }
+    }
+    private void homeAction(String id){
+        switch(id){
+            case "resume_music":resume(false);break;
+            case "resume_audiobook":resume(true);break;
+            case "music_playlists":showPlaylists(false);break;
+            case "audiobook_playlists":showPlaylists(true);break;
+            case "browse_audio":showLibrary(false);break;
+            case "listening_settings":showSettings();break;
+            case "export_metadata":confirmMetadataExport();break;
+            case "help":showHelp();break;
+            case "about":showAbout();break;
+        }
+    }
     private void showHome(){
         reset("HOME");
-        item("Music playlists",()->showPlaylists(false));
-        item("Audiobook playlists",()->showPlaylists(true));
-        item("Browse / search local audio",()->showLibrary(false));
-        item("Resume music (explicit play)",()->resume(false));
-        item("Resume audiobook (explicit play)",()->resume(true));
-        item("Listening settings",this::showSettings);
-        item("Export metadata for PC (manual)",this::confirmMetadataExport);
-        item("Help / controls",this::showHelp);
-        item("About / version",this::showAbout);
-        render("Keypad Player · DEV8",mediaReady?"D-pad moves · Center selects · Back returns":"Audio permission needed for library playback");
+        for(int i=0;i<homeOrder.size();i++){
+            final String id=homeOrder.get(i);
+            item((i+1)+". "+homeLabel(id),()->homeAction(id));
+        }
+        render("Dumbplayer · DEV9 candidate",
+            (mediaReady?"D-pad selects · Center opens":"Audio permission needed for playback")+
+            " · 1–9 opens saved menu positions · * Reorder");
+    }
+    /** Provisional * binding, not a selected owner key; no tenth menu entry. */
+    private void startHomeReorder(){
+        int row=list.getSelectedItemPosition();
+        if(row<0 || row>=homeOrder.size())row=0;
+        homeDraft=homeOrder.copy();homeMovingId=homeDraft.get(row);
+        showHomeReorder();
+    }
+    private void showHomeReorder(){
+        if(homeDraft==null){showHome();return;}
+        final HomeMenuOrder draft=homeDraft;
+        reset("HOME_REORDER");
+        for(int i=0;i<draft.size();i++){
+            final String id=draft.get(i);
+            item((id.equals(homeMovingId)?"> MOVING ":"  ")+(i+1)+". "+homeLabel(id),()->{});
+        }
+        render("Reorder main menu", "Up/Down move · 1 Top · 9 Bottom · Center Save · CLR Cancel");
+        int row=draft.indexOf(homeMovingId);
+        list.post(()->{if("HOME_REORDER".equals(screen) && homeDraft==draft &&
+            draft.indexOf(homeMovingId)==row){
+            // Ignore an older queued selection callback after another rapid move.
+            list.setSelection(row);list.requestFocus();
+        }});
+    }
+    private void homeMove(int key){
+        if(homeDraft==null)return;
+        int current=homeDraft.indexOf(homeMovingId);
+        int destination=current;
+        switch(key){
+            case KeyEvent.KEYCODE_DPAD_UP:destination=Math.max(0,current-1);break;
+            case KeyEvent.KEYCODE_DPAD_DOWN:destination=Math.min(homeDraft.size()-1,current+1);break;
+            case KeyEvent.KEYCODE_1:destination=0;break;
+            case KeyEvent.KEYCODE_9:destination=homeDraft.size()-1;break;
+        }
+        if(homeDraft.move(homeMovingId,destination))showHomeReorder();
+    }
+    private void finishHomeReorder(boolean save){
+        final String selected=homeMovingId;
+        if(save && homeDraft!=null){
+            // Commit synchronously; a failed write must not pretend the new order is durable.
+            boolean persisted=getSharedPreferences("dumbplayer_home_menu",MODE_PRIVATE).edit()
+                .putString("order",homeDraft.serialize()).commit();
+            if(!persisted){message("Menu order not saved; retry or cancel.");return;}
+            homeOrder=homeDraft.copy();
+        }
+        homeDraft=null;homeMovingId="";showHome();
+        int row=homeOrder.indexOf(selected);
+        if(row>=0)list.post(()->{if("HOME".equals(screen))list.setSelection(row);});
     }
     private void showAbout(){
         // BUILD_UTC is generated by Gradle configuration on the builder's machine.
         // No build timestamp is invented for an uncompiled source-only ZIP.
-        message("Keypad Player · DISPOSABLE SANDBOX\nApplication ID: "+getPackageName()+"\nVersion: "+BuildConfig.VERSION_NAME+
+        message("Dumbplayer · DISPOSABLE SANDBOX\nApplication ID: "+getPackageName()+"\nVersion: "+BuildConfig.VERSION_NAME+
             "\nBuild configured UTC: "+BuildConfig.BUILD_UTC+
-            "\nSource candidate prepared: 2026-10-30"+
+            "\nSource candidate prepared: 2026-10-31"+
             "\nRelease date: Not released"+
-            "\nDEV8 development candidate for existing WQA365 sandbox; physical trial not certified."+
+            "\nDEV9 source candidate for existing WQA365 sandbox; physical trial not certified."+
             "\nMade by GPT-6 and Aurora Williamsen"+
             "\nOffline player · No cloud upload");
     }
     private void showHelp(){
         reset("HELP");item("Back to home",this::showHome);
+        item("Home menu: reorder and digits 1–9",()->message("On Home, highlight an entry and press * (provisional shortcut) to move it. Up/Down reorders, 1/9 jumps to top/bottom, Center saves, CLR cancels. On Home, digits 1–9 open the entries at their saved positions."));
         item("Playlists: select an item to reorder or remove",()->message("Highlight a playlist track and press * to move it in place. D-pad Up/Down moves it, 1/9 jumps to top/bottom, Center saves and CLR cancels. Track actions also opens Move Mode. Order is never alphabetized."));
         item("Now playing: seek 10 seconds or bookmark",()->message("Music and audiobook progress are separate. No autoplay on launch."));
         item("About / version",this::showAbout);
@@ -530,6 +609,36 @@ public final class KeypadPlayerActivity extends Activity {
     /** Source-only keypad mapping; actual E4831 key delivery still requires owner trial. */
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         int key=event.getKeyCode();
+        // HOME numeric dispatch is positional and follows the saved user order.
+        // Only HOME owns 1–9; Now Playing, playlist Move Mode and text fields are untouched.
+        if("HOME".equals(screen) && !(getCurrentFocus() instanceof EditText)){
+            if(key==KeyEvent.KEYCODE_STAR){
+                if(event.getAction()==KeyEvent.ACTION_DOWN && event.getRepeatCount()==0)
+                    startHomeReorder();
+                return true;
+            }
+            if(key>=KeyEvent.KEYCODE_1 && key<=KeyEvent.KEYCODE_9){
+                if(event.getAction()==KeyEvent.ACTION_DOWN && event.getRepeatCount()==0)
+                    homeAction(homeOrder.get(key-KeyEvent.KEYCODE_1));
+                return true;
+            }
+        }
+        if("HOME_REORDER".equals(screen) && !(getCurrentFocus() instanceof EditText)){
+            boolean move=key==KeyEvent.KEYCODE_DPAD_UP || key==KeyEvent.KEYCODE_DPAD_DOWN ||
+                key==KeyEvent.KEYCODE_1 || key==KeyEvent.KEYCODE_9;
+            boolean save=key==KeyEvent.KEYCODE_DPAD_CENTER || key==KeyEvent.KEYCODE_ENTER;
+            boolean cancel=key==KeyEvent.KEYCODE_DEL || key==KeyEvent.KEYCODE_CLEAR ||
+                key==KeyEvent.KEYCODE_BACK || key==KeyEvent.KEYCODE_ESCAPE;
+            if(move || save || cancel){
+                if(event.getAction()==KeyEvent.ACTION_DOWN){
+                    if(move)homeMove(key);
+                    else if(event.getRepeatCount()==0)finishHomeReorder(save);
+                }
+                return true;
+            }
+            // Ignore other digits in editing mode; never launch a home action.
+            if(key>=KeyEvent.KEYCODE_0 && key<=KeyEvent.KEYCODE_9)return true;
+        }
         // Move Mode owns D-pad moves (including key-repeat), top/bottom and
         // explicit save/cancel. Do not pass these keys to ListView navigation.
         if("MOVE".equals(screen) && !(getCurrentFocus() instanceof EditText)){
@@ -929,6 +1038,7 @@ public final class KeypadPlayerActivity extends Activity {
     @Override public void onBackPressed(){
         switch(screen){
             case "HOME":super.onBackPressed();break;
+            case "HOME_REORDER":finishHomeReorder(false);break;
             case "PLAYLISTS":case "HELP":case "SETTINGS":showHome();break;
             case "ALPHABET":restoreLibrary();break;
             case "LIBRARY_TRACK":returnToLibrary();break;

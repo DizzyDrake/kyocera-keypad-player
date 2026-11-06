@@ -1,0 +1,340 @@
+{
+  "schema": "kyocera-dev5-source-manifest-v1",
+  "task_id": "WQ-20261029-020",
+  "worker": "B",
+  "source": "KYOCERA_KEYPAD_DEV4_WQA365_IN_PLACE_UPDATE_SOURCE_v0.1.8.zip",
+  "source_sha256": "84512c3ed5cf431811d357649913e04cebf4ffe054e1c8d5e3c6e6bb1ad42613",
+  "package_status": "OFFLINE_SOURCE_ONLY_UNCOMPILED",
+  "identity": {
+    "applicationId": "org.roarin.kyocerakeypad.sandboxwqa365",
+    "versionCode": 8,
+    "versionName": "0.1.9-dev5-wqb427-playlist-source"
+  },
+  "files": [
+    {
+      "path": "00_READ_FIRST_DEV4.md",
+      "bytes": 2917,
+      "sha256": "114abee04825664015a3063e67bfb205390c5d9133f2fe8269cabf1f3d989857"
+    },
+    {
+      "path": "OWNER_TRIAL_WQA355.md",
+      "bytes": 1858,
+      "sha256": "1001488ed37a0a1d171f50c75f1c7409f4706669dc05adddf8dca0c50d687cb3"
+    },
+    {
+      "path": "OWNER_TRIAL_WQA357.md",
+      "bytes": 1523,
+      "sha256": "2ccbd0ae271fecc7e8c7650f21f4a08b94c761fdb46d2b3438a1ed33f76007bb"
+    },
+    {
+      "path": "OWNER_TRIAL_WQA359.md",
+      "bytes": 2214,
+      "sha256": "05c6b65db5b970fd940b43ed994a19f9d07da7e9f3a8f731ec1d9385d0c54bc2"
+    },
+    {
+      "path": "PARENT_DEV4_SOURCE_MANIFEST_HISTORICAL.json",
+      "bytes": 7323,
+      "sha256": "0418693fb2f9a4ec1cf01b5775be56b9b0aa729247639547c30269a44f726ce5"
+    },
+    {
+      "path": "PARENT_SOURCE_MANIFEST_WQA355.json",
+      "bytes": 4863,
+      "sha256": "20e85ed9e7c4e40e42e9713339de3f7690bebfa4a97dad614a6251e25bf7c0b8"
+    },
+    {
+      "path": "PARENT_SOURCE_MANIFEST_WQA359.json",
+      "bytes": 5456,
+      "sha256": "362ef616a66a42bbb23fca88d58f017df3b0f267f7145f3cfc761c6b9f2604c9"
+    },
+    {
+      "path": "PARENT_SOURCE_MANIFEST_WQC063.json",
+      "bytes": 5080,
+      "sha256": "425df6e235a6f61ff0b8f94a108de24ea97480d1c9b2934df97153dc50025d97"
+    },
+    {
+      "path": "PROVENANCE_WQA365_SOURCE_MANIFEST_HISTORICAL.json",
+      "bytes": 5944,
+      "sha256": "1959e1c264d98284628be12ffc1ef4b2e9b4e89dd8ac065fe3cc31ec188e6f5d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4054,
+      "sha256": "6b9661ee479deb41fbac01f8d8acbb79844432b8d4ba25d3998f680d8e511bf2"
+    },
+    {
+      "path": "README_DEV4_HISTORICAL.md",
+      "bytes": 6494,
+      "sha256": "35c2dad46abe71adbe01278070630a565d3ebaadd93ad329f5dc486909c26de9"
+    },
+    {
+      "path": "README_GITHUB_DEV4_HISTORICAL.md",
+      "bytes": 2409,
+      "sha256": "38a0415833604d935c3fa3bd0bfc4edcf8e52d9b77096ebaa08aad389c9331f4"
+    },
+    {
+      "path": "README_WQA365_DISPOSABLE_SIDE_BY_SIDE_TRIAL.md",
+      "bytes": 3660,
+      "sha256": "5c45634045cfd402ed6ea8ff98b9a1c39c6200f00bcf780957bf72a53259ddd9"
+    },
+    {
+      "path": "README_WQB405_UNBUILT_SERVICE_PROTOTYPE.md",
+      "bytes": 5850,
+      "sha256": "b12fae99be53489517d5e42e9ebd7f8f72f15835fc6a6c00e9afce15a319aa8a"
+    },
+    {
+      "path": "WQC063_OWNER_HANDOFF.md",
+      "bytes": 1411,
+      "sha256": "8f3795716f4aabaaf23b96c5162b60766fe1b7770e73de6bee2bbd8b13cd0baa"
+    },
+    {
+      "path": "app/build.gradle",
+      "bytes": 890,
+      "sha256": "c8e2aaef43ef613b4d51d6ea152753b3b30caeea4bb0e9ec5d8e5d21f6347bd3"
+    },
+    {
+      "path": "app/src/main/AndroidManifest.xml",
+      "bytes": 1015,
+      "sha256": "36dde4a4e253edbd793aaf8f835115625584f292fe5e4141865e855126790259"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlaybackService.java",
+      "bytes": 27131,
+      "sha256": "b32c7adc90809aa52fe2b4c60140f500b35ff2b7e3239da7d14b7c5dde070b0b"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java",
+      "bytes": 41273,
+      "sha256": "3cac0d9839c32a00d902f2b88a50edcff3999fdef17bbc12f4d733aa4f5a3314"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java.orig",
+      "bytes": 29991,
+      "sha256": "9eae65956b67632ffc4297d013c974ebee129e2cd14810031c21aa3e8addc796"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/AlphabetJump.java",
+      "bytes": 1621,
+      "sha256": "a446237a11080fdd9d499791bf2f04de2a5d5c81bc5e3e2812f965a507315bfb"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/AudioFocusGate.java",
+      "bytes": 1027,
+      "sha256": "5cde04242ab000204e9123c1bf87c3978dea2b55547e28059e56d98e9d37b9f6"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/CompletionPolicy.java",
+      "bytes": 2040,
+      "sha256": "bdefef1d3bd778a13bce58e0c9087bc4efcb29677cbaf4642afcdfe87f90a5a9"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/FailedOpenRollback.java",
+      "bytes": 3429,
+      "sha256": "562f90020b859feaff0ce40edb814b5f46b9a60457a43e68db28943331129993"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/MediaTransportSequencer.java",
+      "bytes": 3914,
+      "sha256": "4d8e9648f51e1361eb6c139891a870ca238404b4be5af27fe735af0d5e9bcdfa"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PhoneSnapshotExport.java",
+      "bytes": 8460,
+      "sha256": "cbfb7dfcb4f26c5050f2ca4fadd3d3b84b4b299edaae78747eebec453eefaa11"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlaybackGate.java",
+      "bytes": 662,
+      "sha256": "b4dab82002a5f41f022e677bf73d5c4364aa5e687370f0a2e140c694eb9955e1"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlayerState.java",
+      "bytes": 6767,
+      "sha256": "ca99f925ee66d3d3bd9db64e326797edf28311f1a08ad3863bff58361db25f24"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlaylistPlaybackOrder.java",
+      "bytes": 1936,
+      "sha256": "889902ac85e94bca895310cc56cfad699944c3bcb91f6691307c59f22810e44a"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/StateCodec.java",
+      "bytes": 3484,
+      "sha256": "20bc9e0eeee4ad1310b6de557a81cccefa769fcbf13403f6e0b7ed8efc307489"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/StateMutation.java",
+      "bytes": 896,
+      "sha256": "e03a8639cbf6afd6656df67ddd39e63d822e6af498d257bc9550971db0daa4b0"
+    },
+    {
+      "path": "build.gradle",
+      "bytes": 69,
+      "sha256": "fd4af6dfc5c96ac5f6742b33878cb2a880e2a7803f41aebedf4e357f9e3091ff"
+    },
+    {
+      "path": "sample/fictional_phone_export.json",
+      "bytes": 1265,
+      "sha256": "a7994aa9c46d4183068b8de1b4ec964c23af77676c0c7b47400115c9178ea3fe"
+    },
+    {
+      "path": "settings.gradle",
+      "bytes": 285,
+      "sha256": "5a8ba2fc4c19359da32a0a9dcbc58552d09ea4b910732ce83eb1b44c55cab958"
+    },
+    {
+      "path": "tests/AlphabetJumpTests.java",
+      "bytes": 2338,
+      "sha256": "ad6683dd441c1a3d0a5c3d72f60f53a4b272e8d2bbd9b3cf040a78f1389e13a6"
+    },
+    {
+      "path": "tests/AudioFocusGateTests.java",
+      "bytes": 3144,
+      "sha256": "2900f1c8acf2481cd87a940532cc0ff86233dcd6d05490c73fad5d2af2dc745c"
+    },
+    {
+      "path": "tests/CompletionPolicyTests.java",
+      "bytes": 3475,
+      "sha256": "526b425d025f18577d3116b50c9723e7bcb22a0cc2918e7ae0f4bdce54a4ba3b"
+    },
+    {
+      "path": "tests/CompletionSelectionTests.java",
+      "bytes": 3221,
+      "sha256": "8cff7688805ae87080e0cec7c76c405fa8a5e8dcd7c0d2859f2b43f4d5f717d5"
+    },
+    {
+      "path": "tests/FailedOpenRollbackTests.java",
+      "bytes": 6542,
+      "sha256": "066600cd0b45ec246a2236d046960f864e729be232527c946c13d601a6253f0c"
+    },
+    {
+      "path": "tests/FailedOpenSelectionTests.java",
+      "bytes": 2671,
+      "sha256": "bd192abf74fbc4807d5aefb937b6e82c9a0377d9c4f48f066ee59945c1409209"
+    },
+    {
+      "path": "tests/MediaTransportSequencerTests.java",
+      "bytes": 3171,
+      "sha256": "781bb674511eb315980351161647a2279712646b5fe3ebfe90e583b07278e92f"
+    },
+    {
+      "path": "tests/MutationCommitTests.java",
+      "bytes": 4190,
+      "sha256": "74d98172ec5dc6bfe7e4cced56c73bc1fdb71d601d59b416888ff5d19c40aeca"
+    },
+    {
+      "path": "tests/PlaybackGateTests.java",
+      "bytes": 1370,
+      "sha256": "50f91882546ac7a3a4f659e81e00455a8f4f90773dc56ba6bd814df9099d7505"
+    },
+    {
+      "path": "tests/PlaylistPlaybackOrderTests.java",
+      "bytes": 3101,
+      "sha256": "e1b024f34c5192ce46ea87ba5cfbf3a1cd9542f8c63feb55071360df023aef7b"
+    },
+    {
+      "path": "tests/RollbackProgressTests.java",
+      "bytes": 3535,
+      "sha256": "a6e1ec410808480e115752d446716e5eedea6bf1d12fa04a41c2eeacb76b2c62"
+    },
+    {
+      "path": "tests/SnapshotExportTests.java",
+      "bytes": 5674,
+      "sha256": "f83b70631ed16f4defe319e1a52baf7cbdbeb01e1ce0d90b591317786f4fe016"
+    },
+    {
+      "path": "tests/StateTests.java",
+      "bytes": 4510,
+      "sha256": "7af6b6ba1f03e3f4028f85659380f906cbf5e6c8610c3140157e8400534a8958"
+    },
+    {
+      "path": "tests/check_alphabet_ui.py",
+      "bytes": 2048,
+      "sha256": "fbee54cf99bcc229582ae9ba445db3e14a38c285892138d5e6fb97d57626be5f"
+    },
+    {
+      "path": "tests/check_android_source_guard.py",
+      "bytes": 1495,
+      "sha256": "722ca98abe98795eca04e882ae0509695fdeecdd0c5c7caf7db27df19210f542"
+    },
+    {
+      "path": "tests/check_audio_focus_integration.py",
+      "bytes": 2026,
+      "sha256": "61876b1092282ebc941a5da1955acec059fdf6070ed081b59628cb4a2f74c2ba"
+    },
+    {
+      "path": "tests/check_completion_policy.py",
+      "bytes": 1218,
+      "sha256": "077ff2e6bca5e0a869f7eb543ee99e5178d4acf9818d71c2df34e40e9ac4b574"
+    },
+    {
+      "path": "tests/check_integrated_callback_guards.py",
+      "bytes": 2561,
+      "sha256": "e653c72c8c4c8affa9d4f7f56476ebe2a5a6d52cb8a516b26b4f5d61ef1e1505"
+    },
+    {
+      "path": "tests/check_wqd059_ui_preview.py",
+      "bytes": 4698,
+      "sha256": "57a9b2857c403f8e898a614406bbc809ae03b2da70d95e21a8bbe3203293835d"
+    },
+    {
+      "path": "tests/run_core_tests.sh",
+      "bytes": 2120,
+      "sha256": "5404c720a08460b8e2f7cd98ca660c01faaa036fe362e33790226e7e02f2f510"
+    },
+    {
+      "path": "tests/run_dev5_feature_smoke.sh",
+      "bytes": 601,
+      "sha256": "e427466e99b79e818f013c4fac6940b778269098a6e3a05886423d8cd3e4cd3d"
+    },
+    {
+      "path": "tests/run_wqb405_offline.sh",
+      "bytes": 514,
+      "sha256": "5e5117ea25f4019389f9db79ad61c2947a266f72387a6c63d279c75fd0edc143"
+    },
+    {
+      "path": "tests/test_dev5_playlist_wiring.py",
+      "bytes": 2596,
+      "sha256": "d8dbc6fd59426eec7a038adaa7d88ee6761c08dde8e0ac779e2d9526bb5c06c0"
+    },
+    {
+      "path": "tests/test_keypad_prompt_contract.py",
+      "bytes": 2218,
+      "sha256": "9b4658622dafbefc9d64ff7c8c556fc3fea55a75abdbfc3e21b120f302ee2d3d"
+    },
+    {
+      "path": "tests/test_service_lifecycle_source.py",
+      "bytes": 3110,
+      "sha256": "0c9693444b72dacbfdf4ae3d3c18f83bf4bea113b07f5b0338e4708a7649787e"
+    },
+    {
+      "path": "tests/test_wqa355_mutation_wiring.py",
+      "bytes": 2005,
+      "sha256": "840a37cfa093c7df7943cbf840a992df407ca91808d7bf0e48be092993222da6"
+    },
+    {
+      "path": "tests/test_wqa357_completion_wiring.py",
+      "bytes": 1727,
+      "sha256": "11c87dafc5c317d499d8568c0772f141ee4f25359a17cdf77c62b7a1ace50934"
+    },
+    {
+      "path": "tests/test_wqa359_activity_rollback.py",
+      "bytes": 1795,
+      "sha256": "6f96eaa5298b72a3964426bff8c267103be4ca6dfdecc4c44232a1110073fba2"
+    },
+    {
+      "path": "tests/test_wqa365_sandbox_identity.py",
+      "bytes": 3674,
+      "sha256": "9c623e0edbf7e9eba5f6b7c1cf985f92ca682a94ce5b08ea4909aaa46539124d"
+    },
+    {
+      "path": "tests/test_wqb405_service_wiring.py",
+      "bytes": 3920,
+      "sha256": "da0675e88cc9e5e25aefcf1c20cba70b18915c902952251d097b20d4fbc9af55"
+    },
+    {
+      "path": "tests/test_wqe082_failed_open.py",
+      "bytes": 3658,
+      "sha256": "be00f5ef7d88acbb3e109191fc04bbd45265c04ec541f0f64a2efe948474dab9"
+    }
+  ]
+}
