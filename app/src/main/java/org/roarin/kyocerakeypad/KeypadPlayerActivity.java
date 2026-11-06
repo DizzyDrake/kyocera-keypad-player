@@ -24,6 +24,9 @@ import org.roarin.kyocerakeypad.core.PlaybackGate;
 import org.roarin.kyocerakeypad.core.AudioFocusGate;
 import org.roarin.kyocerakeypad.core.CompletionPolicy;
 import org.roarin.kyocerakeypad.core.PhoneSnapshotExport;
+import org.roarin.kyocerakeypad.core.PhonePlaylistImport;
+import org.json.*;
+import java.nio.charset.StandardCharsets;
 import org.roarin.kyocerakeypad.core.AlphabetJump;
 import org.roarin.kyocerakeypad.core.StateMutation;
 import org.roarin.kyocerakeypad.core.FailedOpenRollback;
@@ -187,7 +190,7 @@ public final class KeypadPlayerActivity extends Activity {
             final String id=homeOrder.get(i);
             item((i+1)+". "+homeLabel(id),()->homeAction(id));
         }
-        render("Dumbplayer · DEV9 candidate",
+        render("Dumbplayer · DEV10 import trial",
             (mediaReady?"D-pad selects · Center opens":"Audio permission needed for playback")+
             " · 1–9 opens saved menu positions · * Reorder");
     }
@@ -269,6 +272,7 @@ public final class KeypadPlayerActivity extends Activity {
         item("Audiobook resume rewind: "+(playback==null?"Off":rewindLabel(playback.audiobookRewindSeconds())),()->{
             if(playback!=null){playback.cycleAudiobookRewind();showSettings();}
         });
+        item("Import PC playlists (ADB transfer)",this::confirmPlaylistImport);
         item("Sleep timer: set from Music or Audiobook Now Playing",()->message(
             "Start or resume a track, then choose Sleep timer in Now Playing. It pauses and saves the position."));
         item("← Home",this::showHome);
@@ -828,7 +832,7 @@ public final class KeypadPlayerActivity extends Activity {
             message("Export blocked: audio scan incomplete, missing or changed tracks. No files exported.");return;
         }
         new AlertDialog.Builder(this).setTitle("Export metadata only?")
-            .setMessage("Creates a local JSON snapshot of track names/paths, playlists, bookmarks and positions in this app's transfer folder. No audio copied. Filenames can be private. Use ADB only if you choose to later. No import available yet.")
+            .setMessage("Creates a local JSON snapshot of track names/paths, playlists, bookmarks and positions in this app's transfer folder. No audio copied. Filenames can be private. Use ADB only if you choose to later. Import is available under Listening settings after manual ADB transfer.")
             .setNegativeButton("Cancel",(d,w)->{})
             .setPositiveButton("Export",(d,w)->exportMetadata()).show();
     }
@@ -847,9 +851,84 @@ public final class KeypadPlayerActivity extends Activity {
             FileOutputStream out=null;
             try{out=output.startWrite();out.write(json);output.finishWrite(out);}
             catch(Exception error){if(out!=null)output.failWrite(out);throw error;}
-            message("Exported metadata only ("+json.length+" bytes) to: "+dest.getAbsolutePath()+"\nADB pull is owner-invoked. No phone import or automatic sync.");
+            message("Exported metadata only ("+json.length+" bytes) to: "+dest.getAbsolutePath()+"\nADB pull is owner-invoked. PC import requires separate confirmation.");
         } catch(Exception error) {
             message("Export refused/failed: "+error.getClass().getSimpleName()+" — "+error.getMessage());
+        }
+    }
+    /** Read only the one known transfer filename; never browse other user files. */
+    private void confirmPlaylistImport(){
+        if(recoveryMode || playback==null || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
+            message("Import blocked until the audio library is ready and consistent.");return;
+        }
+        File dir=getExternalFilesDir("transfer");
+        if(dir==null){message("Transfer folder unavailable");return;}
+        final File source=new File(dir,PhonePlaylistImport.FILENAME);
+        if(!source.isFile()){message("No "+PhonePlaylistImport.FILENAME+" in transfer folder. Push it via ADB first.");return;}
+        new AlertDialog.Builder(this).setTitle("Import PC playlists?")
+            .setMessage("Replaces ALL playlists. Music/audiobook resume positions may reset if their playlist or track was removed. " +
+                "Existing bookmarks and audio files stay in place. " +
+                "The file must match the current phone snapshot; otherwise it is refused. Continue?")
+            .setNegativeButton("Cancel",(d,w)->{})
+            .setPositiveButton("Import",(d,w)->importPlaylists(source)).show();
+    }
+    private static String jsonText(JSONObject object,String name) throws JSONException {
+        Object value=object.get(name);
+        if(!(value instanceof String))throw new JSONException("Invalid "+name);
+        return (String)value;
+    }
+    private void importPlaylists(File source){
+        if(recoveryMode || playback==null || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
+            message("Import blocked: audio library changed");return;
+        }
+        try{
+            if(source.length()<=0 || source.length()>PhonePlaylistImport.MAX_BYTES)
+                throw new IOException("Invalid import file size");
+            // Exactly one bounded file, UTF-8; no implicit phone file chooser or network.
+            ByteArrayOutputStream buf=new ByteArrayOutputStream();
+            try(FileInputStream input=new FileInputStream(source)){
+                byte[] block=new byte[8192];int n;
+                while((n=input.read(block))!=-1){
+                    if(buf.size()+n>PhonePlaylistImport.MAX_BYTES)throw new IOException("Oversize import");
+                    buf.write(block,0,n);
+                }
+            }
+            JSONObject payload=new JSONObject(new String(buf.toByteArray(),StandardCharsets.UTF_8));
+            if(!PhonePlaylistImport.SCHEMA.equals(jsonText(payload,"schema")))
+                throw new IOException("Unknown import format");
+            String expected=jsonText(payload,"expected_snapshot_id");
+            JSONArray ps=payload.getJSONArray("playlists");
+            if(ps.length()>1000)throw new IOException("Too many playlists");
+            ArrayList<PhonePlaylistImport.Spec> specs=new ArrayList<>();
+            for(int i=0;i<ps.length();i++){
+                JSONObject p=ps.getJSONObject(i);
+                Object flag=p.get("audiobook");
+                if(!(flag instanceof Boolean))throw new JSONException("Invalid audiobook flag");
+                JSONArray rows=p.getJSONArray("track_keys");
+                if(rows.length()>50000)throw new IOException("Too many playlist entries");
+                ArrayList<String> keys=new ArrayList<>();
+                for(int j=0;j<rows.length();j++){
+                    Object entry=rows.get(j);
+                    if(!(entry instanceof String))throw new JSONException("Invalid track identity");
+                    keys.add((String)entry);
+                }
+                specs.add(new PhonePlaylistImport.Spec(jsonText(p,"id"),jsonText(p,"name"),
+                    (Boolean)flag,keys));
+            }
+            // Stop and persist before the identity check: stopping active playback
+            // may update the position and therefore the state-derived snapshot ID.
+            if(!playback.stopPlayer())throw new IOException("Could not safely stop/save playback");
+            String current=new JSONObject(new String(PhoneSnapshotExport.encode(state,mediaPaths),
+                StandardCharsets.UTF_8)).getString("snapshot_id");
+            if(!expected.equals(current))
+                throw new IOException("Phone changed since the PC snapshot; export a fresh snapshot and reattach saved playlists");
+            if(commitMutation("Import PC playlists",next->PhonePlaylistImport.apply(next,specs))){
+                selectedPlaylist="";selectedTrack="";showHome();
+                message("Imported "+specs.size()+" playlists. Invalid playback positions reset; bookmarks retained. " +
+                        "No audio files were changed. Imported file retained for inspection.");
+            }
+        }catch(Exception error){
+            message("Import refused: "+error.getClass().getSimpleName()+" — "+error.getMessage());
         }
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
