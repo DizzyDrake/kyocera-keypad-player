@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: Apache-2.0
+# Safe replacement path: only upload APK with SAME signer as owner-supplied DEV12.
+# The keystore must contain the private key that signed that APK; an APK contains
+# only the certificate, never the signing private key.
+name: Dumbplayer DEV13 signed update (certificate match required)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compatible-update:
+    runs-on: ubuntu-latest
+    env:
+      DEV12_CERT_SHA256: 'C7F55F72049E0547354F65816836856735124AB9B46AC73A0265AF099FEFAC16'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Android SDK platform
+        run: sdkmanager 'platforms;android-33' 'build-tools;33.0.2'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '7.6.4'
+      - name: Offline feature regression
+        run: |
+          bash tests/run_bluetooth_volume_seek_smoke.sh
+          python3 tests/test_stale_import_source.py
+      - name: Build unsigned release output
+        run: gradle --no-daemon :app:assembleRelease
+      - name: Sign and verify compatibility BEFORE making APK available
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.KYOCERA_DEV12_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.KYOCERA_DEV12_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KYOCERA_DEV12_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KYOCERA_DEV12_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$KEYSTORE_B64" || -z "$STORE_PASSWORD" || -z "$KEY_ALIAS" || -z "$KEY_PASSWORD" ]]; then
+            echo 'Missing one or more KYOCERA_DEV12 signing secrets. No APK will be published.'
+            exit 1
+          fi
+          sdk="$ANDROID_HOME/build-tools/33.0.2"
+          work="$RUNNER_TEMP/kyocera-dev13"
+          mkdir -p "$work" out
+          # Never print keys/passwords or include them in uploaded artifacts.
+          trap 'rm -f "$work/dev12.keystore"' EXIT
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$work/dev12.keystore"
+          chmod 600 "$work/dev12.keystore"
+          unsigned="app/build/outputs/apk/release/app-release-unsigned.apk"
+          test -f "$unsigned"
+          "$sdk/zipalign" -f -p 4 "$unsigned" "$work/aligned.apk"
+          "$sdk/apksigner" sign --ks "$work/dev12.keystore" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:STORE_PASSWORD --key-pass env:KEY_PASSWORD \
+            --out out/dumbplayer-dev13-update-candidate.apk "$work/aligned.apk"
+          "$sdk/apksigner" verify --min-sdk-version 29 --verbose \
+            out/dumbplayer-dev13-update-candidate.apk
+          cert=$("$sdk/apksigner" verify --print-certs \
+            out/dumbplayer-dev13-update-candidate.apk | \
+            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | \
+            tr -d ':\r' | tr '[:lower:]' '[:upper:]')
+          if [[ "$cert" != "$DEV12_CERT_SHA256" ]]; then
+            echo 'STOP: signing certificate DOES NOT MATCH owner-supplied DEV12 APK.'
+            echo 'No update APK may be published; keep installed app and data unchanged.'
+            exit 1
+          fi
+          package=$("$sdk/aapt" dump badging \
+            out/dumbplayer-dev13-update-candidate.apk | head -1)
+          [[ "$package" == *"name='org.roarin.kyocerakeypad.sandboxwqa365'"* ]]
+          [[ "$package" == *"versionCode='16'"* ]]
+          echo 'Signer, package ID and version code MATCH expected DEV12->DEV13 update path.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dumbplayer-dev13-signer-matched-update
+          path: out/dumbplayer-dev13-update-candidate.apk
+          if-no-files-found: error
