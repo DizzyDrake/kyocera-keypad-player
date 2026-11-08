@@ -1,0 +1,58 @@
+{
+  "schema": "kyocera-dev13-integration-report-v1",
+  "date": "2026-11-08",
+  "status": "SOURCE_ONLY_INTEGRATED_OFFLINE_TESTED_NOT_SIGNED_NOT_ANDROID_COMPILED",
+  "package_id": "org.roarin.kyocerakeypad.sandboxwqa365",
+  "version_code": 16,
+  "version_name": "0.2.7-dev13-stale-import-bt-direction",
+  "owner_confirmed": [
+    "Double Volume Down seeks forward 30s",
+    "Double Volume Up seeks backward 15s",
+    "Incidental volume movement acceptable",
+    "Stale playlist import should be permitted despite snapshot ID mismatch, with user accepting consequences",
+    "Update installed app without uninstall/data loss if signing permits"
+  ],
+  "changes": [
+    "Pure Java detector direction inverted; volume routing unchanged",
+    "Build version-derived home title",
+    "Relaxed stale snapshot PC playlist importer with missing-track preview and confirmation",
+    "Maintains validation and bounded known filename",
+    "Version code bump 15->16",
+    "Two GitHub Actions workflows: compile-only and signer-guarded compatible update"
+  ],
+  "source_baseline": {
+    "filename": "DUMBPLAYER_DEV12_OPTIN_DOUBLE_VOLUME_SEEK_SOURCE_ONLY_20261108.zip",
+    "sha256": "1e4150e6bc002e51f017d19d65edead932d54504538664c23798e037a47218ae"
+  },
+  "stale_import_patch": {
+    "filename": "DEV13_STALE_IMPORT_WIP_20261108.patch",
+    "sha256": "6ad24e04a0fc7740db7ba5319a9278386ab5aac80ea4834c3e953ac3a4cd2311"
+  },
+  "owner_uploaded_dev12_apk": {
+    "sha256": "21e37b389800dc6ef6d79917d3370bec5f023d8ec05b3ec6b95320a653197fea",
+    "certificate_sha256": "C7F55F72049E0547354F65816836856735124AB9B46AC73A0265AF099FEFAC16",
+    "private_signing_key": "not present in APK; unavailable to this session"
+  },
+  "offline_verification": {
+    "java_volume_detector": "24 PASS",
+    "java_stale_import": "24 PASS",
+    "java_existing_phone_import": "17 PASS",
+    "static_integrated_wiring": "25/25 PASS",
+    "static_bluetooth_seek_wiring": "19/19 PASS",
+    "static_stale_import": "15/15 PASS",
+    "inherited_dev8_feature_smoke": "PASS after updating inherited version literals to 16",
+    "inherited_bluetooth_probe_smoke": "PASS",
+    "inherited_bluetooth_volume_seek_smoke": "PASS",
+    "old_core_static_guard": "Fails on unchanged DEV12, same preexisting out-of-date checks; NOT treated as DEV13 regression"
+  },
+  "unverified": [
+    "Android Gradle compile",
+    "GitHub workflows execution",
+    "Access to signing keystore matching owner DEV12",
+    "Signed compatible APK",
+    "adb install -r update",
+    "Actual Kyocera playback, BT closed flip, input timing",
+    "Actual stale playlist import on phone"
+  ],
+  "privacy": "Source does not contain attached owner music, JSON, original APK, debug signing private key or device logs"
+}

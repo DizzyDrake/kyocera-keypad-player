@@ -1,0 +1,757 @@
+--- /dev/null
++++ b/.github/workflows/dev13-compile-check.yml
+@@ -0,0 +1,33 @@
++# SPDX-License-Identifier: Apache-2.0
++# Source compile without an installable deliverable: the runner's auto-created
++# debug signing key is NOT necessarily compatible with the owner's installed APK.
++name: Dumbplayer DEV13 compile check (no APK artifact)
++on:
++  workflow_dispatch:
++permissions:
++  contents: read
++jobs:
++  android-compile-only:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-java@v4
++        with:
++          distribution: temurin
++          java-version: '17'
++      - uses: android-actions/setup-android@v3
++        with:
++          packages: 'platform-tools'
++      - name: Install Android SDK platform
++        run: sdkmanager 'platforms;android-33' 'build-tools;33.0.2'
++      - uses: gradle/actions/setup-gradle@v4
++        with:
++          gradle-version: '7.6.4'
++      - name: Offline feature regression
++        run: |
++          bash tests/run_bluetooth_volume_seek_smoke.sh
++          python3 tests/test_stale_import_source.py
++      - name: Android Gradle compilation (debug, NOT an installable update)
++        run: gradle --no-daemon :app:assembleDebug
++      - name: Explain missing install artifact
++        run: echo 'Compile succeeded. This workflow intentionally does not publish an APK because the debug signer may differ from the owner-installed DEV12 APK. Run the signed-update workflow after providing the ORIGINAL compatible signing key.'
+--- /dev/null
++++ b/.github/workflows/dev13-update-signed.yml
+@@ -0,0 +1,82 @@
++# SPDX-License-Identifier: Apache-2.0
++# Safe replacement path: only upload APK with SAME signer as owner-supplied DEV12.
++# The keystore must contain the private key that signed that APK; an APK contains
++# only the certificate, never the signing private key.
++name: Dumbplayer DEV13 signed update (certificate match required)
++on:
++  workflow_dispatch:
++permissions:
++  contents: read
++jobs:
++  compatible-update:
++    runs-on: ubuntu-latest
++    env:
++      DEV12_CERT_SHA256: 'C7F55F72049E0547354F65816836856735124AB9B46AC73A0265AF099FEFAC16'
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-java@v4
++        with:
++          distribution: temurin
++          java-version: '17'
++      - uses: android-actions/setup-android@v3
++        with:
++          packages: 'platform-tools'
++      - name: Android SDK platform
++        run: sdkmanager 'platforms;android-33' 'build-tools;33.0.2'
++      - uses: gradle/actions/setup-gradle@v4
++        with:
++          gradle-version: '7.6.4'
++      - name: Offline feature regression
++        run: |
++          bash tests/run_bluetooth_volume_seek_smoke.sh
++          python3 tests/test_stale_import_source.py
++      - name: Build unsigned release output
++        run: gradle --no-daemon :app:assembleRelease
++      - name: Sign and verify compatibility BEFORE making APK available
++        shell: bash
++        env:
++          KEYSTORE_B64: ${{ secrets.KYOCERA_DEV12_KEYSTORE_BASE64 }}
++          STORE_PASSWORD: ${{ secrets.KYOCERA_DEV12_KEYSTORE_PASSWORD }}
++          KEY_ALIAS: ${{ secrets.KYOCERA_DEV12_KEY_ALIAS }}
++          KEY_PASSWORD: ${{ secrets.KYOCERA_DEV12_KEY_PASSWORD }}
++        run: |
++          set -euo pipefail
++          if [[ -z "$KEYSTORE_B64" || -z "$STORE_PASSWORD" || -z "$KEY_ALIAS" || -z "$KEY_PASSWORD" ]]; then
++            echo 'Missing one or more KYOCERA_DEV12 signing secrets. No APK will be published.'
++            exit 1
++          fi
++          sdk="$ANDROID_HOME/build-tools/33.0.2"
++          work="$RUNNER_TEMP/kyocera-dev13"
++          mkdir -p "$work" out
++          # Never print keys/passwords or include them in uploaded artifacts.
++          trap 'rm -f "$work/dev12.keystore"' EXIT
++          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$work/dev12.keystore"
++          chmod 600 "$work/dev12.keystore"
++          unsigned="app/build/outputs/apk/release/app-release-unsigned.apk"
++          test -f "$unsigned"
++          "$sdk/zipalign" -f -p 4 "$unsigned" "$work/aligned.apk"
++          "$sdk/apksigner" sign --ks "$work/dev12.keystore" \
++            --ks-key-alias "$KEY_ALIAS" \
++            --ks-pass env:STORE_PASSWORD --key-pass env:KEY_PASSWORD \
++            --out out/dumbplayer-dev13-update-candidate.apk "$work/aligned.apk"
++          "$sdk/apksigner" verify --min-sdk-version 29 --verbose \
++            out/dumbplayer-dev13-update-candidate.apk
++          cert=$("$sdk/apksigner" verify --print-certs \
++            out/dumbplayer-dev13-update-candidate.apk | \
++            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | \
++            tr -d ':\r' | tr '[:lower:]' '[:upper:]')
++          if [[ "$cert" != "$DEV12_CERT_SHA256" ]]; then
++            echo 'STOP: signing certificate DOES NOT MATCH owner-supplied DEV12 APK.'
++            echo 'No update APK may be published; keep installed app and data unchanged.'
++            exit 1
++          fi
++          package=$("$sdk/aapt" dump badging \
++            out/dumbplayer-dev13-update-candidate.apk | head -1)
++          [[ "$package" == *"name='org.roarin.kyocerakeypad.sandboxwqa365'"* ]]
++          [[ "$package" == *"versionCode='16'"* ]]
++          echo 'Signer, package ID and version code MATCH expected DEV12->DEV13 update path.'
++      - uses: actions/upload-artifact@v4
++        with:
++          name: dumbplayer-dev13-signer-matched-update
++          path: out/dumbplayer-dev13-update-candidate.apk
++          if-no-files-found: error
+--- /dev/null
++++ b/DEV13_TEST_REPORT.json
+@@ -0,0 +1,58 @@
++{
++  "schema": "kyocera-dev13-integration-report-v1",
++  "date": "2026-11-08",
++  "status": "SOURCE_ONLY_INTEGRATED_OFFLINE_TESTED_NOT_SIGNED_NOT_ANDROID_COMPILED",
++  "package_id": "org.roarin.kyocerakeypad.sandboxwqa365",
++  "version_code": 16,
++  "version_name": "0.2.7-dev13-stale-import-bt-direction",
++  "owner_confirmed": [
++    "Double Volume Down seeks forward 30s",
++    "Double Volume Up seeks backward 15s",
++    "Incidental volume movement acceptable",
++    "Stale playlist import should be permitted despite snapshot ID mismatch, with user accepting consequences",
++    "Update installed app without uninstall/data loss if signing permits"
++  ],
++  "changes": [
++    "Pure Java detector direction inverted; volume routing unchanged",
++    "Build version-derived home title",
++    "Relaxed stale snapshot PC playlist importer with missing-track preview and confirmation",
++    "Maintains validation and bounded known filename",
++    "Version code bump 15->16",
++    "Two GitHub Actions workflows: compile-only and signer-guarded compatible update"
++  ],
++  "source_baseline": {
++    "filename": "DUMBPLAYER_DEV12_OPTIN_DOUBLE_VOLUME_SEEK_SOURCE_ONLY_20261108.zip",
++    "sha256": "1e4150e6bc002e51f017d19d65edead932d54504538664c23798e037a47218ae"
++  },
++  "stale_import_patch": {
++    "filename": "DEV13_STALE_IMPORT_WIP_20261108.patch",
++    "sha256": "6ad24e04a0fc7740db7ba5319a9278386ab5aac80ea4834c3e953ac3a4cd2311"
++  },
++  "owner_uploaded_dev12_apk": {
++    "sha256": "21e37b389800dc6ef6d79917d3370bec5f023d8ec05b3ec6b95320a653197fea",
++    "certificate_sha256": "C7F55F72049E0547354F65816836856735124AB9B46AC73A0265AF099FEFAC16",
++    "private_signing_key": "not present in APK; unavailable to this session"
++  },
++  "offline_verification": {
++    "java_volume_detector": "24 PASS",
++    "java_stale_import": "24 PASS",
++    "java_existing_phone_import": "17 PASS",
++    "static_integrated_wiring": "25/25 PASS",
++    "static_bluetooth_seek_wiring": "19/19 PASS",
++    "static_stale_import": "15/15 PASS",
++    "inherited_dev8_feature_smoke": "PASS after updating inherited version literals to 16",
++    "inherited_bluetooth_probe_smoke": "PASS",
++    "inherited_bluetooth_volume_seek_smoke": "PASS",
++    "old_core_static_guard": "Fails on unchanged DEV12, same preexisting out-of-date checks; NOT treated as DEV13 regression"
++  },
++  "unverified": [
++    "Android Gradle compile",
++    "GitHub workflows execution",
++    "Access to signing keystore matching owner DEV12",
++    "Signed compatible APK",
++    "adb install -r update",
++    "Actual Kyocera playback, BT closed flip, input timing",
++    "Actual stale playlist import on phone"
++  ],
++  "privacy": "Source does not contain attached owner music, JSON, original APK, debug signing private key or device logs"
++}
+--- a/README.md
++++ b/README.md
+@@ -1,24 +1,48 @@
+-# Dumbplayer DEV12 — opt-in double-volume seek source-only experiment
++# Dumbplayer DEV13 — playlist import and Bluetooth owner trial
+ 
+-**Status:** SOURCE ONLY. Based on DEV11 Bluetooth volume diagnostic. The owner supplied three real Kyocera probe reports on November 8, 2026. No Android Gradle/APK build or live DEV12 phone trial has been performed here. Existing DEV10/DEV11 installed state is untouched.
++**2026-11-08 source candidate only.** Derived from archived DEV12, preserving original source and existing WQA365 package identity. No phone installation, APK compilation, APK signing, or on-device DEV13 tests were performed for this bundle.
+ 
+-## Owner-confirmed behavior
++## Owner-selected behavior integrated
+ 
+-- Monster Airmars SG03 Pro used on both phone models.
+-- Double Volume Up = **seek +30 s**, double Volume Down = **seek −15 s** (Podcast Addict target).
+-- Normal single presses remain ordinary volume changes; incidental volume adjustment on double press is acceptable.
+-- Existing hold-Next and Play/Pause must keep working.
++- **Double Volume Down: forward 30 seconds**; **double Volume Up: back 15 seconds** while playing. Normal single-press volume changes continue; incidental volume changes on double presses are acceptable. The experimental setting remains user-selectable in Listening settings. Existing settings/preferences persist on compatible in-place update. Because input is inferred from sampled volume-level changes, the phone's own volume buttons can also trigger seeks, and the endpoints may not be detected.
++- Home title derives `DEV13` from Gradle `BuildConfig.VERSION_NAME`; no leftover `DEV10 Import Trial` banner.
++- `Import PC playlists (ADB transfer)` requires the `kyocera-playlist-import-v0.1` schema and the exact filename `pc_playlist_import_v1.json` in this app's external `transfer` folder. Stale or missing `expected_snapshot_id` is allowed with a clear warning. File structure and duplicate track/playlist identities still validated.
++- Import preview lists how many available/missing track references are found. Missing IDs are skipped; original relative playlist and track order, names, audiobook flags, and empty playlists are retained. User must confirm **Replace playlists**; preflight does not stop playback. After confirmation, all existing playlist definitions are replaced; usable bookmarks and audio remain untouched; valid resume state retained when possible.
++- Caution: Android can reassign a content media ID to different audio. A stale import can therefore include the *wrong* file for an ID that still exists. The preview cannot automatically prove identity; do not claim it does.
+ 
+-## What this candidate implements
++## DEV12 compatibility and safe signing
+ 
+-Listening settings → **Experimental double VOLUME seek: OFF/ON**, **OFF by default**. While audio is playing, the existing foreground playback service reads `AudioManager.getStreamVolume(STREAM_MUSIC)` every 100 ms. Two observed consecutive one-index increments/decrements in the same direction within 650 ms request a +30 s/−15 s seek. After a successful pair there is an 850 ms cooldown. The service backs off to 500 ms sampling when not playing, resets on pause, skips detection while the 45-second diagnostic records, and cancels callbacks at service shutdown. No volume override, remote VolumeProvider, new permission, notification, or extra app/package ID. Original media transport source is unchanged.
++This source keeps applicationId `org.roarin.kyocerakeypad.sandboxwqa365` and bumps versionCode **15 → 16**; versionName `0.2.7-dev13-stale-import-bt-direction`. Both version and package are necessary but not sufficient for update. Android **requires a matching signing certificate**.
+ 
+-This mechanism detects **volume level changes, not specific headset buttons**: fast adjustment with physical Kyocera buttons can also trigger it; a held button could be mistaken for presses. At minimum/maximum volume, when Android applies no change, no seek is possible. Multiple changes merged into one poll are deliberately ignored to limit false positive seeks. The trial may require tuning or reversal. The on-device setting explains these limitations and may be switched OFF immediately.
++The owner-supplied `app-debug.apk` of DEV12 was independently inspected for its embedded APK Signature Scheme v2 signer certificate:
+ 
+-The DEV11 diagnostic still records on explicit request for 45 seconds; this candidate suspends seeking during the recording. Reports are written in the app-specific shared-storage `transfer` folder using `getExternalFilesDir("transfer")`; `/sdcard` is usually Android's alias for main shared internal storage, not a physical SD card.
++`C7F55F72049E0547354F65816836856735124AB9B46AC73A0265AF099FEFAC16` (SHA-256)
+ 
+-## Source-only validation and limitations
++The APK's certificate is public. **Its corresponding private signing key is not recoverable from the APK.** The certificate `not_before` was `2026-11-08T21:20:53Z`; the development build may have used a newly generated ephemeral GitHub Actions debug key. Merely building this source in a new GitHub Actions runner can create a different signing key and **cannot be assumed to update DEV12**.
+ 
+-`tests/run_bluetooth_volume_seek_smoke.sh` runs inherited DEV9/DEV11 smoke checks, new pure Java detector fixtures (including two replayed actual probe sequences), and source wiring assertions. Passing tests do not establish Android compile, Android volume routing on all devices, flip-closed behavior, Bluetooth timing accuracy, headset-vs-local-button discrimination, or owner approval of UX. The existing playlist import is inherited unmodified; no owner audio or playlists were bundled.
++Two GitHub Actions workflows in `.github/workflows/`:
+ 
+-Install only after building and checking the Android APK signature against installed app. **Never uninstall or clear data to work around a signing mismatch**. Preserve the current working APK and local playlists. Build target API 33 / min API 29 and installed package `org.roarin.kyocerakeypad.sandboxwqa365` are unchanged.
++1. `dev13-compile-check.yml`: Build and run tests; intentionally uploads **no APK**.
++2. `dev13-update-signed.yml`: Build **unsigned release**, sign with a GitHub Secrets keystore, verify APK signature, enforce the expected DEV12 certificate, application ID and versionCode 16, **then** upload the update APK. On mismatch/missing secret, the workflow fails rather than deliver an incompatible installer.
++
++For the second workflow, the repository owner must possess the **original DEV12 private signing key** and configure these GitHub repository *Actions secrets* (do not paste secrets into chats/logs):
++
++- `KYOCERA_DEV12_KEYSTORE_BASE64`: base64 of the original Java keystore bytes, generated privately and uploaded as GitHub secret
++- `KYOCERA_DEV12_KEYSTORE_PASSWORD`
++- `KYOCERA_DEV12_KEY_ALIAS`
++- `KYOCERA_DEV12_KEY_PASSWORD`
++
++If the original key was generated on a disposable runner and not backed up, **we cannot promise an in-place update**. Do not uninstall, clear data, or replace the installed app on that basis. Revisit owner-approved backup/migration separately. An installed DEV12 backup APK alone does not contain the needed private key.
++
++After the signed workflow succeeds, use `adb install -r "path/to/dumbplayer-dev13-update-candidate.apk"`; `-r` requests an update retaining app data. On `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, stop and preserve installed DEV12, then report the error. Do not uninstall to force a signature change.
++
++## What was tested here
++
++See `DEV13_TEST_REPORT.json` and `DEV12_TO_DEV13.patch` in the root. Offline Java and static source checks can pass without an Android SDK. SDK/Gradle APK compile, GitHub secrets, signing with owner key, device installation, playback/seek, and imports on physical phone remain **unverified** until run by the owner.
++
++## Build inputs / ownership
++
++- Android SDK 33, build-tools 33.0.2, Java 17, Gradle 7.6.4 (GitHub workflow provisions them).
++- Previous DEV12 ZIP and stale-import WIP patch remain separately preserved in the ChatGPT Library project.
++- No private playlists, audio files, device logs, APK, keystore, or account credentials are bundled in this source ZIP.
++- Parent Work Queue: `WQ-20261023-137`. This is one integration continuation, not a new parent task.
+--- /dev/null
++++ b/README_DEV12_INHERITED.md
+@@ -0,0 +1,24 @@
++# Dumbplayer DEV12 — opt-in double-volume seek source-only experiment
++
++**Status:** SOURCE ONLY. Based on DEV11 Bluetooth volume diagnostic. The owner supplied three real Kyocera probe reports on November 8, 2026. No Android Gradle/APK build or live DEV12 phone trial has been performed here. Existing DEV10/DEV11 installed state is untouched.
++
++## Owner-confirmed behavior
++
++- Monster Airmars SG03 Pro used on both phone models.
++- Double Volume Up = **seek +30 s**, double Volume Down = **seek −15 s** (Podcast Addict target).
++- Normal single presses remain ordinary volume changes; incidental volume adjustment on double press is acceptable.
++- Existing hold-Next and Play/Pause must keep working.
++
++## What this candidate implements
++
++Listening settings → **Experimental double VOLUME seek: OFF/ON**, **OFF by default**. While audio is playing, the existing foreground playback service reads `AudioManager.getStreamVolume(STREAM_MUSIC)` every 100 ms. Two observed consecutive one-index increments/decrements in the same direction within 650 ms request a +30 s/−15 s seek. After a successful pair there is an 850 ms cooldown. The service backs off to 500 ms sampling when not playing, resets on pause, skips detection while the 45-second diagnostic records, and cancels callbacks at service shutdown. No volume override, remote VolumeProvider, new permission, notification, or extra app/package ID. Original media transport source is unchanged.
++
++This mechanism detects **volume level changes, not specific headset buttons**: fast adjustment with physical Kyocera buttons can also trigger it; a held button could be mistaken for presses. At minimum/maximum volume, when Android applies no change, no seek is possible. Multiple changes merged into one poll are deliberately ignored to limit false positive seeks. The trial may require tuning or reversal. The on-device setting explains these limitations and may be switched OFF immediately.
++
++The DEV11 diagnostic still records on explicit request for 45 seconds; this candidate suspends seeking during the recording. Reports are written in the app-specific shared-storage `transfer` folder using `getExternalFilesDir("transfer")`; `/sdcard` is usually Android's alias for main shared internal storage, not a physical SD card.
++
++## Source-only validation and limitations
++
++`tests/run_bluetooth_volume_seek_smoke.sh` runs inherited DEV9/DEV11 smoke checks, new pure Java detector fixtures (including two replayed actual probe sequences), and source wiring assertions. Passing tests do not establish Android compile, Android volume routing on all devices, flip-closed behavior, Bluetooth timing accuracy, headset-vs-local-button discrimination, or owner approval of UX. The existing playlist import is inherited unmodified; no owner audio or playlists were bundled.
++
++Install only after building and checking the Android APK signature against installed app. **Never uninstall or clear data to work around a signing mismatch**. Preserve the current working APK and local playlists. Build target API 33 / min API 29 and installed package `org.roarin.kyocerakeypad.sandboxwqa365` are unchanged.
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -8,8 +8,8 @@
+         applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'
+         minSdk 29
+         targetSdk 29
+-        versionCode 15
+-        versionName '0.2.6-dev12-double-volume-seek-source'
++        versionCode 16
++        versionName '0.2.7-dev13-stale-import-bt-direction'
+         // Generated by the builder at Gradle configuration time in UTC.
+         def utcFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+         utcFormat.setTimeZone(java.util.TimeZone.getTimeZone('UTC'))
+--- a/app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java
++++ b/app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java
+@@ -184,13 +184,22 @@
+             case "about":showAbout();break;
+         }
+     }
++    /** Short visible version derived from Gradle instead of a stale hard-coded trial title. */
++    private static String displayBuildVersion(){
++        String v=BuildConfig.VERSION_NAME;
++        int start=v.indexOf("-dev");
++        if(start<0)return v;
++        start+=1;
++        int end=v.indexOf('-',start);
++        return v.substring(start,end<0?v.length():end).toUpperCase(java.util.Locale.ROOT);
++    }
+     private void showHome(){
+         reset("HOME");
+         for(int i=0;i<homeOrder.size();i++){
+             final String id=homeOrder.get(i);
+             item((i+1)+". "+homeLabel(id),()->homeAction(id));
+         }
+-        render("Dumbplayer · DEV10 import trial",
++        render("Dumbplayer · "+displayBuildVersion(),
+             (mediaReady?"D-pad selects · Center opens":"Audio permission needed for playback")+
+             " · 1–9 opens saved menu positions · * Reorder");
+     }
+@@ -280,8 +289,8 @@
+             showSettings();
+         });
+         item("Double VOLUME seek explanation",()->message(
+-            "Experimental, defaults OFF. While playing, two quick volume increases seek forward 30s; " +
+-            "two quick decreases seek back 15s. Android's volume still changes. " +
++            "Experimental, defaults OFF. While playing, two quick volume decreases seek forward 30s; " +
++            "two quick increases seek back 15s. Android's volume still changes. " +
+             "Phone volume buttons can trigger it too; it cannot identify the headset. " +
+             "An index jump, a button hold, or a press at min/max volume may be missed. " +
+             "Turn OFF if normal volume adjustment skips unexpectedly."));
+@@ -886,12 +895,8 @@
+         if(dir==null){message("Transfer folder unavailable");return;}
+         final File source=new File(dir,PhonePlaylistImport.FILENAME);
+         if(!source.isFile()){message("No "+PhonePlaylistImport.FILENAME+" in transfer folder. Push it via ADB first.");return;}
+-        new AlertDialog.Builder(this).setTitle("Import PC playlists?")
+-            .setMessage("Replaces ALL playlists. Music/audiobook resume positions may reset if their playlist or track was removed. " +
+-                "Existing bookmarks and audio files stay in place. " +
+-                "The file must match the current phone snapshot; otherwise it is refused. Continue?")
+-            .setNegativeButton("Cancel",(d,w)->{})
+-            .setPositiveButton("Import",(d,w)->importPlaylists(source)).show();
++        // Preview parsing and track-availability results before stopping playback.
++        importPlaylists(source);
+     }
+     private static String jsonText(JSONObject object,String name) throws JSONException {
+         Object value=object.get(name);
+@@ -917,7 +922,9 @@
+             JSONObject payload=new JSONObject(new String(buf.toByteArray(),StandardCharsets.UTF_8));
+             if(!PhonePlaylistImport.SCHEMA.equals(jsonText(payload,"schema")))
+                 throw new IOException("Unknown import format");
+-            String expected=jsonText(payload,"expected_snapshot_id");
++            String expected="";
++            if(payload.has("expected_snapshot_id") && !payload.isNull("expected_snapshot_id"))
++                expected=jsonText(payload,"expected_snapshot_id");
+             JSONArray ps=payload.getJSONArray("playlists");
+             if(ps.length()>1000)throw new IOException("Too many playlists");
+             ArrayList<PhonePlaylistImport.Spec> specs=new ArrayList<>();
+@@ -936,18 +943,48 @@
+                 specs.add(new PhonePlaylistImport.Spec(jsonText(p,"id"),jsonText(p,"name"),
+                     (Boolean)flag,keys));
+             }
+-            // Stop and persist before the identity check: stopping active playback
+-            // may update the position and therefore the state-derived snapshot ID.
+-            if(!playback.stopPlayer())throw new IOException("Could not safely stop/save playback");
+-            String current=new JSONObject(new String(PhoneSnapshotExport.encode(state,mediaPaths),
+-                StandardCharsets.UTF_8)).getString("snapshot_id");
+-            if(!expected.equals(current))
+-                throw new IOException("Phone changed since the PC snapshot; export a fresh snapshot and reattach saved playlists");
+-            if(commitMutation("Import PC playlists",next->PhonePlaylistImport.apply(next,specs))){
+-                selectedPlaylist="";selectedTrack="";showHome();
+-                message("Imported "+specs.size()+" playlists. Invalid playback positions reset; bookmarks retained. " +
+-                        "No audio files were changed. Imported file retained for inspection.");
+-            }
++            // Stale snapshot identity is advisory, never grounds for refusal.
++            // Preflight is read-only and happens before playback is interrupted.
++            final PhonePlaylistImport.Prepared prepared=PhonePlaylistImport.prepare(state,specs);
++            String snapshotNote="Snapshot ID absent; import allowed.";
++            if(!expected.isEmpty()){
++                try{
++                    String current=new JSONObject(new String(PhoneSnapshotExport.encode(state,mediaPaths),
++                        StandardCharsets.UTF_8)).getString("snapshot_id");
++                    snapshotNote=expected.equals(current)?"Snapshot ID matches current state.":
++                        "Snapshot ID differs; stale import explicitly allowed.";
++                }catch(Exception ignored){
++                    snapshotNote="Current snapshot ID unavailable; stale import allowed.";
++                }
++            }
++            final String summary=snapshotNote+"\n\n"+
++                "Replace ALL existing playlists with "+prepared.playlists.size()+" imported playlists?\n"+
++                "Available track references: "+prepared.keptReferences+"\n"+
++                "Unavailable track references to skip: "+prepared.missingReferences+
++                " (across "+prepared.affectedPlaylists+" playlists)\n"+
++                "Playlists left empty by missing tracks: "+prepared.emptiedPlaylists+"\n\n"+
++                "Track IDs might refer to different audio if Android reassigned them. " +
++                "No title-based guesses will be made. Unmatched entries will be lost from the " +
++                "imported playlists. Bookmarks and audio files are retained; resume positions " +
++                "may reset. The source JSON stays in the transfer folder.";
++            new AlertDialog.Builder(this).setTitle("Review PC playlist replacement")
++                .setMessage(summary)
++                .setNegativeButton("Cancel",(d,w)->{})
++                .setPositiveButton("Replace playlists",(d,w)->{
++                    if(recoveryMode || playback==null || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
++                        message("Import blocked: audio library changed since preview");return;
++                    }
++                    if(!playback.stopPlayer()){
++                        message("Import canceled: could not safely stop/save playback");return;
++                    }
++                    if(commitMutation("Import PC playlists",next->PhonePlaylistImport.apply(next,prepared.playlists))){
++                        selectedPlaylist="";selectedTrack="";showHome();
++                        message("Imported "+prepared.playlists.size()+" playlists ("+
++                            prepared.keptReferences+" track references; "+
++                            prepared.missingReferences+" missing references skipped). " +
++                            "Bookmarks retained. Imported JSON retained for inspection.");
++                    }
++                }).show();
+         }catch(Exception error){
+             message("Import refused: "+error.getClass().getSimpleName()+" — "+error.getMessage());
+         }
+--- a/app/src/main/java/org/roarin/kyocerakeypad/core/PhonePlaylistImport.java
++++ b/app/src/main/java/org/roarin/kyocerakeypad/core/PhonePlaylistImport.java
+@@ -7,7 +7,8 @@
+ 
+ /**
+  * Offline playlist-only replacement. No Android API, disk writes, or media deletion.
+- * The caller MUST verify the source snapshot identity and obtain user confirmation.
++ * The caller obtains confirmation after a pure preflight. Snapshot mismatches are
++ * informational: stale import is owner-authorized, but unknown track IDs are omitted.
+  * Pass a decoded-copy candidate to apply(), then write through StateMutation.
+  */
+ public final class PhonePlaylistImport {
+@@ -29,6 +30,52 @@
+             throw new IllegalArgumentException("Invalid "+what);
+         for(int i=0;i<s.length();i++) if(s.charAt(i)<32)
+             throw new IllegalArgumentException("Invalid "+what);
++    }
++    /**
++     * Pure preflight for owner-approved stale imports. Preserve input playlist order and
++     * every still-known track key in its original relative order. Unknown track keys
++     * cannot be safely rebound to a different song and are skipped with counts.
++     * Invalid structure and duplicate identities still fail before mutation.
++     */
++    public static final class Prepared {
++        public final ArrayList<Spec> playlists;
++        public final int missingReferences, affectedPlaylists, emptiedPlaylists, keptReferences;
++        private Prepared(ArrayList<Spec> playlists, int missingReferences,
++                         int affectedPlaylists, int emptiedPlaylists, int keptReferences) {
++            this.playlists=playlists;
++            this.missingReferences=missingReferences;
++            this.affectedPlaylists=affectedPlaylists;
++            this.emptiedPlaylists=emptiedPlaylists;
++            this.keptReferences=keptReferences;
++        }
++    }
++    public static Prepared prepare(PlayerState target, List<Spec> specs) {
++        if(target==null || specs==null || specs.size()>1000)
++            throw new IllegalArgumentException("Invalid playlist import list");
++        HashSet<String> ids=new HashSet<>(), names=new HashSet<>();
++        ArrayList<Spec> prepared=new ArrayList<>();
++        int missing=0, affected=0, emptied=0, kept=0;
++        for(Spec spec:specs) {
++            if(spec==null)throw new IllegalArgumentException("Null playlist");
++            label(spec.id,"playlist ID"); label(spec.name,"playlist name");
++            if(!ids.add(spec.id) || !names.add(spec.name.toLowerCase(Locale.ROOT)))
++                throw new IllegalArgumentException("Duplicate playlist ID/name");
++            if(spec.keys==null || spec.keys.size()>50000)
++                throw new IllegalArgumentException("Invalid playlist entries");
++            HashSet<String> seen=new HashSet<>();
++            ArrayList<String> available=new ArrayList<>();
++            int beforeMissing=missing;
++            for(String key:spec.keys) {
++                if(key==null || key.trim().isEmpty() || !seen.add(key))
++                    throw new IllegalArgumentException("Invalid/duplicate track identity");
++                if(target.tracks.containsKey(key)) { available.add(key); kept++; }
++                else missing++;
++            }
++            if(missing!=beforeMissing) affected++;
++            if(!spec.keys.isEmpty() && available.isEmpty()) emptied++;
++            prepared.add(new Spec(spec.id,spec.name,spec.audiobook,available));
++        }
++        return new Prepared(prepared,missing,affected,emptied,kept);
+     }
+     public static void apply(PlayerState target, List<Spec> specs) {
+         if(target==null || specs==null || specs.size()>1000)
+--- a/app/src/main/java/org/roarin/kyocerakeypad/core/VolumeDoubleTapSeek.java
++++ b/app/src/main/java/org/roarin/kyocerakeypad/core/VolumeDoubleTapSeek.java
+@@ -44,7 +44,8 @@
+             firstDirection=0;
+             firstAt=-1L;
+             cooldownUntil=elapsedMs+COOLDOWN_MS;
+-            return step>0?Action.FORWARD_30S:Action.BACK_15S;
++            // Owner trial correction: double DOWN advances 30s; double UP rewinds 15s.
++            return step>0?Action.BACK_15S:Action.FORWARD_30S;
+         }
+         firstDirection=step;
+         firstAt=elapsedMs;
+--- /dev/null
++++ b/tests/StalePlaylistImportTests.java
+@@ -0,0 +1,56 @@
++import org.roarin.kyocerakeypad.core.*;
++import java.util.*;
++
++public final class StalePlaylistImportTests {
++    static int assertions=0;
++    static void ok(boolean b,String label){if(!b) throw new AssertionError(label);assertions++;}
++    static void reject(Runnable fn,String label){boolean failed=false;try{fn.run();}catch(IllegalArgumentException ex){failed=true;}ok(failed,label);}
++    static PlayerState original(){
++        PlayerState s=new PlayerState();
++        for(String key:Arrays.asList("a","b","c"))
++            s.tracks.put(key,new PlayerState.Track(key,"content://media/"+key,key,"artist","album","Music",10000,100));
++        s.createPlaylist("old","Old",false);s.add("old","a");s.select(false,"old","a",3000);
++        s.addBookmark("a","My note",2000);
++        return s;
++    }
++    static PhonePlaylistImport.Spec list(String id,String name,boolean book,String...ids){
++        return new PhonePlaylistImport.Spec(id,name,book,Arrays.asList(ids));
++    }
++    public static void main(String[] args)throws Exception {
++        PlayerState current=original();byte[] unchanged=StateCodec.encode(current);
++        List<PhonePlaylistImport.Spec> stale=Arrays.asList(
++          list("p1","Music",false,"c","missing1","a","missing2","b"),
++          list("p2","Old audiobook",true,"missing3"),
++          list("p3","Empty by choice",false));
++        PhonePlaylistImport.Prepared pre=PhonePlaylistImport.prepare(current,stale);
++        ok(pre.playlists.size()==3,"all playlist definitions retained");
++        ok(pre.keptReferences==3,"known refs counted");
++        ok(pre.missingReferences==3,"unknown refs counted");
++        ok(pre.affectedPlaylists==2,"two affected playlists counted");
++        ok(pre.emptiedPlaylists==1,"one playlist emptied by unknown refs");
++        ok(pre.playlists.get(0).keys.equals(Arrays.asList("c","a","b")),"all surviving refs in original order");
++        ok(pre.playlists.get(1).keys.isEmpty(),"unmatched playlist is retained empty");
++        ok(pre.playlists.get(1).audiobook,"audiobook flag retained");
++        ok(Arrays.equals(StateCodec.encode(current),unchanged),"preflight never mutates live state");
++        PlayerState saved=StateMutation.prepareAndSave(current,
++          next->PhonePlaylistImport.apply(next,pre.playlists),raw->true);
++        ok(saved!=current,"commit persisted new candidate");
++        ok(saved.playlists.size()==3 && !saved.playlists.containsKey("old"),"replacement semantics retained");
++        ok(saved.getPlaylist("p1").entries.equals(Arrays.asList("c","a","b")),"committed order retained");
++        ok(saved.getPlaylist("p2").entries.isEmpty(),"empty playlist valid");
++        ok(saved.music.playlistId.isEmpty(),"invalid position reset");
++        ok(saved.bookmarks.size()==1 && saved.bookmarks.get(0).trackKey.equals("a"),"bookmarks retained");
++        ok(saved.tracks.size()==3,"tracks untouched");
++        ok(Arrays.equals(StateCodec.encode(current),unchanged),"original state still exact");
++        PlayerState fail=StateMutation.prepareAndSave(current,
++          next->PhonePlaylistImport.apply(next,pre.playlists),raw->false);
++        ok(fail==current,"failed persist does not publish replacement");
++        reject(()->PhonePlaylistImport.prepare(current,Arrays.asList(list("p","bad",false,"a","a"))),"duplicates still invalid");
++        reject(()->PhonePlaylistImport.prepare(current,Arrays.asList(list("x","dup",false,"a"),list("y","Dup",false,"c"))),"duplicate name still invalid");
++        reject(()->PhonePlaylistImport.prepare(current,Arrays.asList(list("x","a",false,"a"),list("x","b",true,"b"))),"duplicate id still invalid");
++        reject(()->PhonePlaylistImport.prepare(current,Arrays.asList(list("p","bad\nname",false,"a"))),"bad label still invalid");
++        reject(()->PhonePlaylistImport.prepare(current,null),"null list still invalid");
++        ok(PhonePlaylistImport.prepare(current,new ArrayList<>()).playlists.isEmpty(),"explicit empty playlist set permitted with warning in UI");
++        System.out.println("StalePlaylistImport PASS "+assertions+" assertions (pure Java, no Android UI/phone)");
++    }
++}
+--- a/tests/VolumeDoubleTapSeekTests.java
++++ b/tests/VolumeDoubleTapSeekTests.java
+@@ -15,29 +15,29 @@
+         VolumeDoubleTapSeek d=fresh(5);
+         // Actual owner probe structure: +1 followed by +1 at 202ms distance.
+         expect("first up",d.observe(6,10830),NONE);
+-        expect("second up",d.observe(7,11032),FORWARD_30S);
++        expect("second up rewinds",d.observe(7,11032),BACK_15S);
+         expect("no repeat unchanged",d.observe(7,11135),NONE);
+         expect("cooldown up ignored",d.observe(8,11235),NONE);
+         expect("cooldown down ignored",d.observe(7,11435),NONE);
+         // Clear/rebase on pause or restart.
+         d.reset(8);
+         expect("first down",d.observe(7,24132),NONE);
+-        expect("second down",d.observe(6,24336),BACK_15S);
++        expect("second down advances",d.observe(6,24336),FORWARD_30S);
+         // Another actual owner report pattern: 8->7, then 7->6 203ms later.
+         d.reset(8);
+         expect("report third down first",d.observe(7,34662),NONE);
+-        expect("report third down second",d.observe(6,34865),BACK_15S);
++        expect("report third down second",d.observe(6,34865),FORWARD_30S);
+         d.reset(6);
+         expect("slow first",d.observe(7,2000),NONE);
+         expect("slow second outside window",d.observe(8,2651),NONE);
+         d.reset(6);
+         expect("direction first",d.observe(7,1000),NONE);
+         expect("direction reversal",d.observe(6,1100),NONE);
+-        expect("direction reversal repeated",d.observe(5,1200),BACK_15S);
++        expect("direction reversal repeated",d.observe(5,1200),FORWARD_30S);
+         d.reset(8);
+         expect("combined two-index change deliberately ignored",d.observe(10,1000),NONE);
+         expect("new first after combined",d.observe(11,1100),NONE);
+-        expect("new second after combined",d.observe(12,1220),FORWARD_30S);
++        expect("new second after combined",d.observe(12,1220),BACK_15S);
+         d.reset(15);
+         expect("at max no index change",d.observe(15,1000),NONE);
+         expect("at max no index change twice",d.observe(15,1200),NONE);
+@@ -48,7 +48,7 @@
+         d.clear();
+         expect("after clear baseline",d.observe(10,1400),NONE);
+         expect("after clear first actual change",d.observe(11,1500),NONE);
+-        expect("after clear second actual change",d.observe(12,1600),FORWARD_30S);
++        expect("after clear second actual change",d.observe(12,1600),BACK_15S);
+         System.out.println("PASS "+cases+" volume detector assertions");
+     }
+ }
+--- a/tests/test_bluetooth_double_volume_source.py
++++ b/tests/test_bluetooth_double_volume_source.py
+@@ -9,7 +9,7 @@
+ core=(r/'app/src/main/java/org/roarin/kyocerakeypad/core/VolumeDoubleTapSeek.java').read_text()
+ cases={
+   'same Android applicationId':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
+-  'source-only new version':"versionCode 15" in g and "dev12-double-volume-seek-source" in g,
++  'source-only new version':"versionCode 16" in g and "dev13-stale-import-bt-direction" in g,
+   'volume detection default OFF':'settings.getBoolean("double_volume_seek",false)' in s,
+   'owner-controlled settings toggle':'Experimental double VOLUME seek:' in a and 'setVolumeDoubleSeekEnabled(' in a,
+   'explanation warns local volume keys':'Phone volume buttons can trigger it too' in a,
+@@ -18,8 +18,8 @@
+   '650ms window':'new VolumeDoubleTapSeek(650L)' in s,
+   '100ms samples while playing':'playing?100L:500L' in s,
+   'requires active playback':'if(playing && !btProbeActive)' in s,
+-  'forward 30s':'seek(30000L)' in s,
+-  'backward 15s':'seek(-15000L)' in s,
++  'forward 30s':'seek(30000L)' in s and 'return step>0?Action.BACK_15S:Action.FORWARD_30S;' in core,
++  'backward 15s':'seek(-15000L)' in s and 'return step>0?Action.BACK_15S:Action.FORWARD_30S;' in core,
+   'normal volume unchanged':'setStreamVolume(' not in s and 'adjustStreamVolume(' not in s,
+   'no remote audio routing':'setPlaybackToRemote(' not in s,
+   'keeps existing media control dispatcher':'new MediaTransportSequencer(350)' in s,
+--- a/tests/test_bluetooth_probe_source.py
++++ b/tests/test_bluetooth_probe_source.py
+@@ -10,7 +10,7 @@
+ m=(root/'app/src/main/AndroidManifest.xml').read_text()
+ checks={
+     'same package identity':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
+-    'new version code 15':'versionCode 15' in g,
++    'new version code 16':'versionCode 16' in g,
+     'unchanged Bluetooth media transport timing':'new MediaTransportSequencer(350)' in s,
+     'manual opt-in 45s window':'Record Bluetooth volume/keys (45s)' in a and 'BT_PROBE_LENGTH_MS=45000L' in s,
+     'no opt-in when paused':'if(!playback.isPlaying())' in a,
+--- /dev/null
++++ b/tests/test_dev13_integration_source.py
+@@ -0,0 +1,41 @@
++#!/usr/bin/env python3
++"""Deterministic source checks for DEV13 integration; NOT an Android SDK build."""
++from pathlib import Path
++p=Path(__file__).resolve().parents[1]
++a=(p/'app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java').read_text()
++s=(p/'app/src/main/java/org/roarin/kyocerakeypad/KeypadPlaybackService.java').read_text()
++core=(p/'app/src/main/java/org/roarin/kyocerakeypad/core/VolumeDoubleTapSeek.java').read_text()
++imp=(p/'app/src/main/java/org/roarin/kyocerakeypad/core/PhonePlaylistImport.java').read_text()
++g=(p/'app/build.gradle').read_text()
++m=(p/'app/src/main/AndroidManifest.xml').read_text()
++workflow=(p/'.github/workflows/dev13-update-signed.yml').read_text()
++checks={
++  'package unchanged':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
++  'new version code': 'versionCode 16' in g,
++  'new version name': "versionName '0.2.7-dev13-stale-import-bt-direction'" in g,
++  'header is build-derived': 'render("Dumbplayer · "+displayBuildVersion()' in a and 'BuildConfig.VERSION_NAME' in a,
++  'old hardcoded header removed':'DEV10 import trial' not in a,
++  'up rewinds 15': 'return step>0?Action.BACK_15S:Action.FORWARD_30S' in core and 'seek(-15000L)' in s,
++  'down advances 30': 'return step>0?Action.BACK_15S:Action.FORWARD_30S' in core and 'seek(30000L)' in s,
++  'Bluetooth help corrected': 'two quick volume decreases seek forward 30s;' in a and 'two quick increases seek back 15s' in a,
++  'volume mode opt-in preserved':'settings.getBoolean("double_volume_seek",false)' in s,
++  'no volume hijacking':'setStreamVolume(' not in s and 'adjustStreamVolume(' not in s,
++  'no remote routing':'setPlaybackToRemote(' not in s,
++  'stale IDs advisory':'Snapshot ID differs; stale import explicitly allowed.' in a,
++  'missing snapshot accepted':'payload.has("expected_snapshot_id")' in a,
++  'phone track identities preferred':'target.tracks.containsKey(key)' in imp,
++  'missed references reported':'prepared.missingReferences' in a and 'prepared.affectedPlaylists' in a,
++  'user confirmation required':'.setPositiveButton("Replace playlists"' in a,
++  'preflight happens before stopping':a.index('PhonePlaylistImport.prepare(state,specs)')<a.index('if(!playback.stopPlayer())',a.index('PhonePlaylistImport.prepare(state,specs)')),
++  'file name exact':'pc_playlist_import_v1.json' in imp,
++  'only app transfer folder': 'getExternalFilesDir("transfer")' in a,
++  'no new network permission': 'android.permission.INTERNET' not in m,
++  'signing guard uses uploaded APK fingerprint': 'C7F55F72049E0547354F65816836856735124AB9B46AC73A0265AF099FEFAC16' in workflow,
++  'signing mismatch fails': 'if [[ "$cert" != "$DEV12_CERT_SHA256" ]]' in workflow and 'exit 1' in workflow,
++  'signing key only in secrets': 'secrets.KYOCERA_DEV12_KEYSTORE_BASE64' in workflow and 'KEYSTORE_B64:' not in g,
++  'signing checked before artifact': workflow.index('if [[ "$cert" != "$DEV12_CERT_SHA256" ]]')<workflow.index('actions/upload-artifact@v4'),
++  'build workflows separate': (p/'.github/workflows/dev13-compile-check.yml').is_file(),
++}
++for key,pass_ in checks.items():print(('PASS' if pass_ else 'FAIL')+' '+key)
++print(f'INTEGRATION {sum(checks.values())}/{len(checks)}')
++assert all(checks.values())
+--- a/tests/test_dev8_move_wiring.py
++++ b/tests/test_dev8_move_wiring.py
+@@ -31,8 +31,8 @@
+  'no autoplay on save':'void onPlaylistOrderSaved(String playlistId)' in s and 'player.start()' not in s.split('void onPlaylistOrderSaved(String playlistId)',1)[1].split('void cycleRepeat()',1)[0],
+  'move mode back':'case "MOVE":cancelMoveMode();break;' in a,
+  'android valid headset hook constant':'KeyEvent.KEYCODE_HEADSETHOOK' in s and 'KEYCODE_HEADSETPHOOK' not in s,
+- 'source version code':"versionCode 15" in g,
+- 'source version name':"versionName '0.2.6-dev12-double-volume-seek-source'" in g,
++ 'source version code':"versionCode 16" in g,
++ 'source version name':"versionName '0.2.7-dev13-stale-import-bt-direction'" in g,
+ }
+ for label,ok in checks.items():print(('PASS' if ok else 'FAIL')+' '+label)
+ assert all(checks.values()),'DEV8 Move Mode source wiring check failed'
+--- a/tests/test_dev8_now_wiring.py
++++ b/tests/test_dev8_now_wiring.py
+@@ -27,7 +27,7 @@
+  'parent repeat preserved':'void cycleRepeat()' in s,
+  'parent service background':'startForegroundService(new Intent(this,KeypadPlaybackService.class))' in a,
+  'same sandbox app ID':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
+- 'version code bumped':'versionCode 15' in g and "versionName '0.2.6-dev12-double-volume-seek-source'" in g,
++ 'version code bumped':'versionCode 16' in g and "versionName '0.2.7-dev13-stale-import-bt-direction'" in g,
+ }
+ for name,passed in checks.items():print(('PASS' if passed else 'FAIL'),name)
+ assert all(checks.values())
+--- a/tests/test_dev8_playlist_compat.py
++++ b/tests/test_dev8_playlist_compat.py
+@@ -10,7 +10,7 @@
+ m=(root/'app/src/main/AndroidManifest.xml').read_text()
+ checks={
+  'Existing sandbox identity preserved':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
+- 'Version code incremented': 'versionCode 15' in g,
++ 'Version code incremented': 'versionCode 16' in g,
+  'Explicit Play Playlist action': 'item("▶ Play playlist",()->playPlaylist(p));' in a,
+  'Right shortcut on DETAIL': '"DETAIL".equals(screen)' in a and 'key==KeyEvent.KEYCODE_DPAD_RIGHT' in a,
+  'Right shortcut on PLAYLISTS': '"PLAYLISTS".equals(screen)' in a and 'playlistRowIds.get(row)' in a,
+--- a/tests/test_dev8_sleep_wiring.py
++++ b/tests/test_dev8_sleep_wiring.py
+@@ -23,7 +23,7 @@
+  'existing shuffle preserved':'void setShuffle(boolean enabled)' in s,
+  'existing headset option preserved':'void setExperimentalDoubleNext(boolean enabled)' in s,
+  'sandbox app ID preserved':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in b,
+- 'version bumped':'versionCode 15' in b and "versionName '0.2.6-dev12-double-volume-seek-source'" in b,
++ 'version bumped':'versionCode 16' in b and "versionName '0.2.7-dev13-stale-import-bt-direction'" in b,
+ }
+ for label,ok in checks.items():
+  print(('PASS' if ok else 'FAIL')+' '+label)
+--- a/tests/test_dev9_home_wiring.py
++++ b/tests/test_dev9_home_wiring.py
+@@ -22,7 +22,7 @@
+  'NOW preserved': 'if("NOW".equals(screen)' in a and 'nowShortcut(key)' in a,
+  'playlist move preserved': 'if("MOVE".equals(screen)' in a and 'moveByKey(key)' in a,
+  'app identity unchanged': "applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
+- 'version code bumped': 'versionCode 15' in g,
++ 'version code bumped': 'versionCode 16' in g,
+  'Dumbplayer display label': 'android:label="Dumbplayer"' in m,
+  'legacy readme preserved': (r/'README_DEV8_HISTORICAL.md').exists(),
+  'legacy manifest preserved': (r/'SOURCE_MANIFEST_DEV8_HISTORICAL.json').exists(),
+--- /dev/null
++++ b/tests/test_stale_import_source.py
+@@ -0,0 +1,27 @@
++#!/usr/bin/env python3
++"""Source checks only: parsing, warning, and mutation sequencing still need a real APK test."""
++from pathlib import Path
++r=Path(__file__).resolve().parent.parent
++source=(r/'app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java').read_text()
++core=(r/'app/src/main/java/org/roarin/kyocerakeypad/core/PhonePlaylistImport.java').read_text()
++checks={
++ 'correct schema retained': 'PhonePlaylistImport.SCHEMA.equals(jsonText(payload,"schema"))' in source,
++ 'optional snapshot id': 'payload.has("expected_snapshot_id")' in source,
++ 'mismatched id is information': 'Snapshot ID differs; stale import explicitly allowed.' in source,
++ 'no old snapshot refusal': 'if(!expected.equals(current))' not in source,
++ 'preview before stop': source.index('PhonePlaylistImport.prepare(state,specs)')<source.index('if(!playback.stopPlayer())',source.index('PhonePlaylistImport.prepare(state,specs)')),
++ 'missing refs counted': 'prepared.missingReferences' in source,
++ 'positive confirmation required': '.setPositiveButton("Replace playlists"' in source,
++ 'explicit data loss warning': 'Unmatched entries will be lost from the ' in source,
++ 'uses prepared valid subset': 'PhonePlaylistImport.apply(next,prepared.playlists)' in source,
++ 'transactional mutation retained': 'commitMutation("Import PC playlists"' in source,
++ 'tracks still keyed by identity': 'if(target.tracks.containsKey(key))' in core,
++ 'duplicate ids and names still rejected': 'Duplicate playlist ID/name' in core,
++ 'duplicate track identities still rejected': 'Invalid/duplicate track identity' in core,
++ 'no phone file deletion': 'target.playlists.clear()' in core and 'target.tracks.clear()' not in core,
++ 'files remain bounded': 'PhonePlaylistImport.MAX_BYTES' in source,
++}
++for label,yes in checks.items():
++ print(('PASS' if yes else 'FAIL')+' '+label)
++assert all(checks.values()),'Source checks failed'
++print(f'{len(checks)}/{len(checks)} source checks PASS')

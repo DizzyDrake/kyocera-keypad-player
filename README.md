@@ -1,24 +1,48 @@
-# Dumbplayer DEV12 — opt-in double-volume seek source-only experiment
+# Dumbplayer DEV13 — playlist import and Bluetooth owner trial
 
-**Status:** SOURCE ONLY. Based on DEV11 Bluetooth volume diagnostic. The owner supplied three real Kyocera probe reports on November 8, 2026. No Android Gradle/APK build or live DEV12 phone trial has been performed here. Existing DEV10/DEV11 installed state is untouched.
+**2026-11-08 source candidate only.** Derived from archived DEV12, preserving original source and existing WQA365 package identity. No phone installation, APK compilation, APK signing, or on-device DEV13 tests were performed for this bundle.
 
-## Owner-confirmed behavior
+## Owner-selected behavior integrated
 
-- Monster Airmars SG03 Pro used on both phone models.
-- Double Volume Up = **seek +30 s**, double Volume Down = **seek −15 s** (Podcast Addict target).
-- Normal single presses remain ordinary volume changes; incidental volume adjustment on double press is acceptable.
-- Existing hold-Next and Play/Pause must keep working.
+- **Double Volume Down: forward 30 seconds**; **double Volume Up: back 15 seconds** while playing. Normal single-press volume changes continue; incidental volume changes on double presses are acceptable. The experimental setting remains user-selectable in Listening settings. Existing settings/preferences persist on compatible in-place update. Because input is inferred from sampled volume-level changes, the phone's own volume buttons can also trigger seeks, and the endpoints may not be detected.
+- Home title derives `DEV13` from Gradle `BuildConfig.VERSION_NAME`; no leftover `DEV10 Import Trial` banner.
+- `Import PC playlists (ADB transfer)` requires the `kyocera-playlist-import-v0.1` schema and the exact filename `pc_playlist_import_v1.json` in this app's external `transfer` folder. Stale or missing `expected_snapshot_id` is allowed with a clear warning. File structure and duplicate track/playlist identities still validated.
+- Import preview lists how many available/missing track references are found. Missing IDs are skipped; original relative playlist and track order, names, audiobook flags, and empty playlists are retained. User must confirm **Replace playlists**; preflight does not stop playback. After confirmation, all existing playlist definitions are replaced; usable bookmarks and audio remain untouched; valid resume state retained when possible.
+- Caution: Android can reassign a content media ID to different audio. A stale import can therefore include the *wrong* file for an ID that still exists. The preview cannot automatically prove identity; do not claim it does.
 
-## What this candidate implements
+## DEV12 compatibility and safe signing
 
-Listening settings → **Experimental double VOLUME seek: OFF/ON**, **OFF by default**. While audio is playing, the existing foreground playback service reads `AudioManager.getStreamVolume(STREAM_MUSIC)` every 100 ms. Two observed consecutive one-index increments/decrements in the same direction within 650 ms request a +30 s/−15 s seek. After a successful pair there is an 850 ms cooldown. The service backs off to 500 ms sampling when not playing, resets on pause, skips detection while the 45-second diagnostic records, and cancels callbacks at service shutdown. No volume override, remote VolumeProvider, new permission, notification, or extra app/package ID. Original media transport source is unchanged.
+This source keeps applicationId `org.roarin.kyocerakeypad.sandboxwqa365` and bumps versionCode **15 → 16**; versionName `0.2.7-dev13-stale-import-bt-direction`. Both version and package are necessary but not sufficient for update. Android **requires a matching signing certificate**.
 
-This mechanism detects **volume level changes, not specific headset buttons**: fast adjustment with physical Kyocera buttons can also trigger it; a held button could be mistaken for presses. At minimum/maximum volume, when Android applies no change, no seek is possible. Multiple changes merged into one poll are deliberately ignored to limit false positive seeks. The trial may require tuning or reversal. The on-device setting explains these limitations and may be switched OFF immediately.
+The owner-supplied `app-debug.apk` of DEV12 was independently inspected for its embedded APK Signature Scheme v2 signer certificate:
 
-The DEV11 diagnostic still records on explicit request for 45 seconds; this candidate suspends seeking during the recording. Reports are written in the app-specific shared-storage `transfer` folder using `getExternalFilesDir("transfer")`; `/sdcard` is usually Android's alias for main shared internal storage, not a physical SD card.
+`C7F55F72049E0547354F65816836856735124AB9B46AC73A0265AF099FEFAC16` (SHA-256)
 
-## Source-only validation and limitations
+The APK's certificate is public. **Its corresponding private signing key is not recoverable from the APK.** The certificate `not_before` was `2026-11-08T21:20:53Z`; the development build may have used a newly generated ephemeral GitHub Actions debug key. Merely building this source in a new GitHub Actions runner can create a different signing key and **cannot be assumed to update DEV12**.
 
-`tests/run_bluetooth_volume_seek_smoke.sh` runs inherited DEV9/DEV11 smoke checks, new pure Java detector fixtures (including two replayed actual probe sequences), and source wiring assertions. Passing tests do not establish Android compile, Android volume routing on all devices, flip-closed behavior, Bluetooth timing accuracy, headset-vs-local-button discrimination, or owner approval of UX. The existing playlist import is inherited unmodified; no owner audio or playlists were bundled.
+Two GitHub Actions workflows in `.github/workflows/`:
 
-Install only after building and checking the Android APK signature against installed app. **Never uninstall or clear data to work around a signing mismatch**. Preserve the current working APK and local playlists. Build target API 33 / min API 29 and installed package `org.roarin.kyocerakeypad.sandboxwqa365` are unchanged.
+1. `dev13-compile-check.yml`: Build and run tests; intentionally uploads **no APK**.
+2. `dev13-update-signed.yml`: Build **unsigned release**, sign with a GitHub Secrets keystore, verify APK signature, enforce the expected DEV12 certificate, application ID and versionCode 16, **then** upload the update APK. On mismatch/missing secret, the workflow fails rather than deliver an incompatible installer.
+
+For the second workflow, the repository owner must possess the **original DEV12 private signing key** and configure these GitHub repository *Actions secrets* (do not paste secrets into chats/logs):
+
+- `KYOCERA_DEV12_KEYSTORE_BASE64`: base64 of the original Java keystore bytes, generated privately and uploaded as GitHub secret
+- `KYOCERA_DEV12_KEYSTORE_PASSWORD`
+- `KYOCERA_DEV12_KEY_ALIAS`
+- `KYOCERA_DEV12_KEY_PASSWORD`
+
+If the original key was generated on a disposable runner and not backed up, **we cannot promise an in-place update**. Do not uninstall, clear data, or replace the installed app on that basis. Revisit owner-approved backup/migration separately. An installed DEV12 backup APK alone does not contain the needed private key.
+
+After the signed workflow succeeds, use `adb install -r "path/to/dumbplayer-dev13-update-candidate.apk"`; `-r` requests an update retaining app data. On `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, stop and preserve installed DEV12, then report the error. Do not uninstall to force a signature change.
+
+## What was tested here
+
+See `DEV13_TEST_REPORT.json` and `DEV12_TO_DEV13.patch` in the root. Offline Java and static source checks can pass without an Android SDK. SDK/Gradle APK compile, GitHub secrets, signing with owner key, device installation, playback/seek, and imports on physical phone remain **unverified** until run by the owner.
+
+## Build inputs / ownership
+
+- Android SDK 33, build-tools 33.0.2, Java 17, Gradle 7.6.4 (GitHub workflow provisions them).
+- Previous DEV12 ZIP and stale-import WIP patch remain separately preserved in the ChatGPT Library project.
+- No private playlists, audio files, device logs, APK, keystore, or account credentials are bundled in this source ZIP.
+- Parent Work Queue: `WQ-20261023-137`. This is one integration continuation, not a new parent task.

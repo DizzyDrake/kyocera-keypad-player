@@ -44,7 +44,8 @@ public final class VolumeDoubleTapSeek {
             firstDirection=0;
             firstAt=-1L;
             cooldownUntil=elapsedMs+COOLDOWN_MS;
-            return step>0?Action.FORWARD_30S:Action.BACK_15S;
+            // Owner trial correction: double DOWN advances 30s; double UP rewinds 15s.
+            return step>0?Action.BACK_15S:Action.FORWARD_30S;
         }
         firstDirection=step;
         firstAt=elapsedMs;

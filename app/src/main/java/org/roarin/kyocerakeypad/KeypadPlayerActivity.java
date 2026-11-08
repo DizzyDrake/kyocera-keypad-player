@@ -184,13 +184,22 @@ public final class KeypadPlayerActivity extends Activity {
             case "about":showAbout();break;
         }
     }
+    /** Short visible version derived from Gradle instead of a stale hard-coded trial title. */
+    private static String displayBuildVersion(){
+        String v=BuildConfig.VERSION_NAME;
+        int start=v.indexOf("-dev");
+        if(start<0)return v;
+        start+=1;
+        int end=v.indexOf('-',start);
+        return v.substring(start,end<0?v.length():end).toUpperCase(java.util.Locale.ROOT);
+    }
     private void showHome(){
         reset("HOME");
         for(int i=0;i<homeOrder.size();i++){
             final String id=homeOrder.get(i);
             item((i+1)+". "+homeLabel(id),()->homeAction(id));
         }
-        render("Dumbplayer · DEV10 import trial",
+        render("Dumbplayer · "+displayBuildVersion(),
             (mediaReady?"D-pad selects · Center opens":"Audio permission needed for playback")+
             " · 1–9 opens saved menu positions · * Reorder");
     }
@@ -280,8 +289,8 @@ public final class KeypadPlayerActivity extends Activity {
             showSettings();
         });
         item("Double VOLUME seek explanation",()->message(
-            "Experimental, defaults OFF. While playing, two quick volume increases seek forward 30s; " +
-            "two quick decreases seek back 15s. Android's volume still changes. " +
+            "Experimental, defaults OFF. While playing, two quick volume decreases seek forward 30s; " +
+            "two quick increases seek back 15s. Android's volume still changes. " +
             "Phone volume buttons can trigger it too; it cannot identify the headset. " +
             "An index jump, a button hold, or a press at min/max volume may be missed. " +
             "Turn OFF if normal volume adjustment skips unexpectedly."));
@@ -886,12 +895,8 @@ public final class KeypadPlayerActivity extends Activity {
         if(dir==null){message("Transfer folder unavailable");return;}
         final File source=new File(dir,PhonePlaylistImport.FILENAME);
         if(!source.isFile()){message("No "+PhonePlaylistImport.FILENAME+" in transfer folder. Push it via ADB first.");return;}
-        new AlertDialog.Builder(this).setTitle("Import PC playlists?")
-            .setMessage("Replaces ALL playlists. Music/audiobook resume positions may reset if their playlist or track was removed. " +
-                "Existing bookmarks and audio files stay in place. " +
-                "The file must match the current phone snapshot; otherwise it is refused. Continue?")
-            .setNegativeButton("Cancel",(d,w)->{})
-            .setPositiveButton("Import",(d,w)->importPlaylists(source)).show();
+        // Preview parsing and track-availability results before stopping playback.
+        importPlaylists(source);
     }
     private static String jsonText(JSONObject object,String name) throws JSONException {
         Object value=object.get(name);
@@ -917,7 +922,9 @@ public final class KeypadPlayerActivity extends Activity {
             JSONObject payload=new JSONObject(new String(buf.toByteArray(),StandardCharsets.UTF_8));
             if(!PhonePlaylistImport.SCHEMA.equals(jsonText(payload,"schema")))
                 throw new IOException("Unknown import format");
-            String expected=jsonText(payload,"expected_snapshot_id");
+            String expected="";
+            if(payload.has("expected_snapshot_id") && !payload.isNull("expected_snapshot_id"))
+                expected=jsonText(payload,"expected_snapshot_id");
             JSONArray ps=payload.getJSONArray("playlists");
             if(ps.length()>1000)throw new IOException("Too many playlists");
             ArrayList<PhonePlaylistImport.Spec> specs=new ArrayList<>();
@@ -936,18 +943,48 @@ public final class KeypadPlayerActivity extends Activity {
                 specs.add(new PhonePlaylistImport.Spec(jsonText(p,"id"),jsonText(p,"name"),
                     (Boolean)flag,keys));
             }
-            // Stop and persist before the identity check: stopping active playback
-            // may update the position and therefore the state-derived snapshot ID.
-            if(!playback.stopPlayer())throw new IOException("Could not safely stop/save playback");
-            String current=new JSONObject(new String(PhoneSnapshotExport.encode(state,mediaPaths),
-                StandardCharsets.UTF_8)).getString("snapshot_id");
-            if(!expected.equals(current))
-                throw new IOException("Phone changed since the PC snapshot; export a fresh snapshot and reattach saved playlists");
-            if(commitMutation("Import PC playlists",next->PhonePlaylistImport.apply(next,specs))){
-                selectedPlaylist="";selectedTrack="";showHome();
-                message("Imported "+specs.size()+" playlists. Invalid playback positions reset; bookmarks retained. " +
-                        "No audio files were changed. Imported file retained for inspection.");
+            // Stale snapshot identity is advisory, never grounds for refusal.
+            // Preflight is read-only and happens before playback is interrupted.
+            final PhonePlaylistImport.Prepared prepared=PhonePlaylistImport.prepare(state,specs);
+            String snapshotNote="Snapshot ID absent; import allowed.";
+            if(!expected.isEmpty()){
+                try{
+                    String current=new JSONObject(new String(PhoneSnapshotExport.encode(state,mediaPaths),
+                        StandardCharsets.UTF_8)).getString("snapshot_id");
+                    snapshotNote=expected.equals(current)?"Snapshot ID matches current state.":
+                        "Snapshot ID differs; stale import explicitly allowed.";
+                }catch(Exception ignored){
+                    snapshotNote="Current snapshot ID unavailable; stale import allowed.";
+                }
             }
+            final String summary=snapshotNote+"\n\n"+
+                "Replace ALL existing playlists with "+prepared.playlists.size()+" imported playlists?\n"+
+                "Available track references: "+prepared.keptReferences+"\n"+
+                "Unavailable track references to skip: "+prepared.missingReferences+
+                " (across "+prepared.affectedPlaylists+" playlists)\n"+
+                "Playlists left empty by missing tracks: "+prepared.emptiedPlaylists+"\n\n"+
+                "Track IDs might refer to different audio if Android reassigned them. " +
+                "No title-based guesses will be made. Unmatched entries will be lost from the " +
+                "imported playlists. Bookmarks and audio files are retained; resume positions " +
+                "may reset. The source JSON stays in the transfer folder.";
+            new AlertDialog.Builder(this).setTitle("Review PC playlist replacement")
+                .setMessage(summary)
+                .setNegativeButton("Cancel",(d,w)->{})
+                .setPositiveButton("Replace playlists",(d,w)->{
+                    if(recoveryMode || playback==null || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
+                        message("Import blocked: audio library changed since preview");return;
+                    }
+                    if(!playback.stopPlayer()){
+                        message("Import canceled: could not safely stop/save playback");return;
+                    }
+                    if(commitMutation("Import PC playlists",next->PhonePlaylistImport.apply(next,prepared.playlists))){
+                        selectedPlaylist="";selectedTrack="";showHome();
+                        message("Imported "+prepared.playlists.size()+" playlists ("+
+                            prepared.keptReferences+" track references; "+
+                            prepared.missingReferences+" missing references skipped). " +
+                            "Bookmarks retained. Imported JSON retained for inspection.");
+                    }
+                }).show();
         }catch(Exception error){
             message("Import refused: "+error.getClass().getSimpleName()+" — "+error.getMessage());
         }
