@@ -1,3 +1,4 @@
+[README.md](https://github.com/user-attachments/files/34557544/README.md)
 # Dumbplayer DEV13 — playlist import and Bluetooth owner trial
 
 **2026-11-08 source candidate only.** Derived from archived DEV12, preserving original source and existing WQA365 package identity. No phone installation, APK compilation, APK signing, or on-device DEV13 tests were performed for this bundle.
@@ -5,6 +6,7 @@
 ## Owner-selected behavior integrated
 
 - **Double Volume Down: forward 30 seconds**; **double Volume Up: back 15 seconds** while playing. Normal single-press volume changes continue; incidental volume changes on double presses are acceptable. The experimental setting remains user-selectable in Listening settings. Existing settings/preferences persist on compatible in-place update. Because input is inferred from sampled volume-level changes, the phone's own volume buttons can also trigger seeks, and the endpoints may not be detected.
+- The DEV11 diagnostic still records Bluetooth media events and music-volume index changes during a manually selected 45-second recording; it is independent of the experimental double-volume seek setting.
 - Home title derives `DEV13` from Gradle `BuildConfig.VERSION_NAME`; no leftover `DEV10 Import Trial` banner.
 - `Import PC playlists (ADB transfer)` requires the `kyocera-playlist-import-v0.1` schema and the exact filename `pc_playlist_import_v1.json` in this app's external `transfer` folder. Stale or missing `expected_snapshot_id` is allowed with a clear warning. File structure and duplicate track/playlist identities still validated.
 - Import preview lists how many available/missing track references are found. Missing IDs are skipped; original relative playlist and track order, names, audiobook flags, and empty playlists are retained. User must confirm **Replace playlists**; preflight does not stop playback. After confirmation, all existing playlist definitions are replaced; usable bookmarks and audio remain untouched; valid resume state retained when possible.
