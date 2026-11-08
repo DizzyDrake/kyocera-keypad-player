@@ -1,7 +1,7 @@
 {
   "schema": "source-archive-manifest-v1",
-  "name": "Dumbplayer DEV13 integrated source-only",
-  "created_utc": "2026-11-08T22:42:16.905418+00:00",
+  "name": "Dumbplayer DEV13 integrated source-only — CI README correction R1",
+  "created_utc": "2026-11-08T23:26:05.599056+00:00",
   "parent_zip_sha256": "1e4150e6bc002e51f017d19d65edead932d54504538664c23798e037a47218ae",
   "entries": [
     {
@@ -86,8 +86,8 @@
     },
     {
       "path": "README.md",
-      "size": 5178,
-      "sha256": "a6aacb71ddcf37f81343efba7dafa21bb3e042ba24210e3af612b56d9749f48b"
+      "size": 5383,
+      "sha256": "5f3498bafe5121e695d654944fc3ebcd0730799a4abf533aa3f8528081950c33"
     },
     {
       "path": "README_DEV10_INHERITED.md",
