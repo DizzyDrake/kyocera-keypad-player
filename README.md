@@ -1,41 +1,24 @@
-# Dumbplayer DEV11 / 0.2.5 — source-only 45-second Bluetooth diagnostic
+# Dumbplayer DEV12 — opt-in double-volume seek source-only experiment
 
-**STATUS:** UNBUILT, UNINSTALLED, UNTESTED ON KYOCERA. Retains all DEV10 playlist-import functionality. It is a diagnostic branch for the same Android package `org.roarin.kyocerakeypad.sandboxwqa365`, not a separate app. It must be built with a signing certificate that matches the installed Dumbplayer to preserve app data.
+**Status:** SOURCE ONLY. Based on DEV11 Bluetooth volume diagnostic. The owner supplied three real Kyocera probe reports on November 8, 2026. No Android Gradle/APK build or live DEV12 phone trial has been performed here. Existing DEV10/DEV11 installed state is untouched.
 
-## Owner-selected reference behavior
+## Owner-confirmed behavior
 
-The same Bluetooth neckband on Podcast Addict (smartphone) gives double Volume Up = **+30 seconds** and double Volume Down = **−15 seconds**, with no observed volume change; Dumbplayer may change volume incidentally and still be useful. Single volume presses should remain ordinary volume adjustments; Play/Pause and hold-Next must continue working. These are the owner's target behaviors, **NOT implemented** in this diagnostic build.
+- Monster Airmars SG03 Pro used on both phone models.
+- Double Volume Up = **seek +30 s**, double Volume Down = **seek −15 s** (Podcast Addict target).
+- Normal single presses remain ordinary volume changes; incidental volume adjustment on double press is acceptable.
+- Existing hold-Next and Play/Pause must keep working.
 
-## What DEV11 actually changes
+## What this candidate implements
 
-- In Listening settings, **Record Bluetooth volume/keys (45s)** starts only when a track is already playing. Starting the test never touches the player state, files, playlists or audio routing.
-- For 45 seconds, the background playback service samples **only the Android music stream's numeric volume index** every 100 ms, recording changes with elapsed milliseconds. It also records any `MediaSession.Callback` media key codes and playback callback names received in that window.
-- The final report is a small UTF-8 text file named `bt_probe_<timestamp>.txt` under `/sdcard/Android/data/org.roarin.kyocerakeypad.sandboxwqa365/files/transfer/`. It does not contain track titles, filenames, media contents, BT addresses, device serials or contact data.
-- If the Android service stops before 45 seconds, it attempts to save the partial report with an explicit `Service closed before 45s` marker.
-- No recording occurs outside the explicit 45-second window. The code does not intercept, remap, delay or suppress any volume / playback command. No hardware polling privileges or special permissions added.
+Listening settings → **Experimental double VOLUME seek: OFF/ON**, **OFF by default**. While audio is playing, the existing foreground playback service reads `AudioManager.getStreamVolume(STREAM_MUSIC)` every 100 ms. Two observed consecutive one-index increments/decrements in the same direction within 650 ms request a +30 s/−15 s seek. After a successful pair there is an 850 ms cooldown. The service backs off to 500 ms sampling when not playing, resets on pause, skips detection while the 45-second diagnostic records, and cancels callbacks at service shutdown. No volume override, remote VolumeProvider, new permission, notification, or extra app/package ID. Original media transport source is unchanged.
 
-**Important diagnostic limitation:** `AudioManager.getStreamVolume(STREAM_MUSIC)` reflects only system-visible volume changes. Some neckbands handle volume locally or via AVRCP absolute volume, and volume inputs may never reach the app's media-session callbacks. A report with no changes DOES NOT prove that no button presses occurred. The sample interval may combine multiple quick presses into one volume-index step. An instrumented app cannot directly intercept Bluetooth volume in all Android configurations; avoid claiming it can.
+This mechanism detects **volume level changes, not specific headset buttons**: fast adjustment with physical Kyocera buttons can also trigger it; a held button could be mistaken for presses. At minimum/maximum volume, when Android applies no change, no seek is possible. Multiple changes merged into one poll are deliberately ignored to limit false positive seeks. The trial may require tuning or reversal. The on-device setting explains these limitations and may be switched OFF immediately.
 
-## Owner trial (only after GitHub build/install is deliberately approved and signing verified)
+The DEV11 diagnostic still records on explicit request for 45 seconds; this candidate suspends seeking during the recording. Reports are written in the app-specific shared-storage `transfer` folder using `getExternalFilesDir("transfer")`; `/sdcard` is usually Android's alias for main shared internal storage, not a physical SD card.
 
-1. Install a matching-signed DEV11 APK with `adb install -r ...`. **Never uninstall/clear data to bypass signing errors.** Keep the known-working DEV10 APK available for rollback with matching signer (Android may refuse a version-code downgrade).
-2. Connect neckband, play an unimportant track, open **Listening settings → Record Bluetooth volume/keys (45s)**. Close the flip if desired. During the window do: (a) Up once, (b) Up twice quickly, (c) Down once, (d) Down twice quickly, (e) optionally hold Next. Leave about 3 seconds between sets to correlate entries with actions. Controls are not remapped.
-3. Connect USB and run in Windows PowerShell:
+## Source-only validation and limitations
 
-```powershell
-adb devices
-adb shell ls -lt '/sdcard/Android/data/org.roarin.kyocerakeypad.sandboxwqa365/files/transfer/bt_probe_*.txt'
-# Copy only the newest bt_probe_<timestamp>.txt shown above:
-$filename = Read-Host 'Paste the bt_probe_...txt filename (no path)'
-$remote = '/sdcard/Android/data/org.roarin.kyocerakeypad.sandboxwqa365/files/transfer/' + $filename
-adb pull $remote "$env:USERPROFILE\Downloads\$filename"
-```
+`tests/run_bluetooth_volume_seek_smoke.sh` runs inherited DEV9/DEV11 smoke checks, new pure Java detector fixtures (including two replayed actual probe sequences), and source wiring assertions. Passing tests do not establish Android compile, Android volume routing on all devices, flip-closed behavior, Bluetooth timing accuracy, headset-vs-local-button discrimination, or owner approval of UX. The existing playlist import is inherited unmodified; no owner audio or playlists were bundled.
 
-Please report whether single/double presses changed the Kyocera volume and whether the phone lid was open or closed. Inspect the report before sharing if you prefer; it contains only the limited fields described above.
-
-## Build/test status
-
-- Source candidate based on exact Library DEV10 ZIP: `DUMBPLAYER_DEV10_PC_PLAYLIST_IMPORT_SOURCE_ONLY_20261105.zip` (SHA-256 recorded in build report).
-- Source insertion, interaction containment and manifest validation tested via Python static assertions and diff check. Existing DEV10 pure-Java smoke suite may be run and results preserved separately.
-- No Android SDK/Gradle build, APK installation, headset trial or runtime capture performed here. **Do not treat this as a proved Bluetooth +30/−15 feature.**
-- The Bluetooth diagnostic is a distinct optional branch. Workers should integrate only after checking actual owner headset event evidence. If Android does not expose volume events, investigate ADB/system traces or alternative headset commands before proposing audio-routing mutation.
+Install only after building and checking the Android APK signature against installed app. **Never uninstall or clear data to work around a signing mismatch**. Preserve the current working APK and local playlists. Build target API 33 / min API 29 and installed package `org.roarin.kyocerakeypad.sandboxwqa365` are unchanged.

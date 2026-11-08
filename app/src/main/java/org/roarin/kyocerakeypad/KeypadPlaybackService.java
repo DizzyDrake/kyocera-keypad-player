@@ -40,6 +40,37 @@ public final class KeypadPlaybackService extends Service {
     private PlaylistPlaybackOrder.Repeat repeatMode = PlaylistPlaybackOrder.Repeat.OFF;
     final IBinder binder = new LocalBinder();
     final Handler handler = new Handler(Looper.getMainLooper());
+    // Owner-requested experimental double-volume seek. Defaults OFF.
+    // Observes system volume indices so the existing Android volume routing
+    // and MediaSession media-button handler remain unchanged. This can also
+    // react to local/device volume changes; it cannot identify the headset.
+    private final VolumeDoubleTapSeek volumeDoubleTap=new VolumeDoubleTapSeek(650L);
+    private boolean volumeDoubleSeekEnabled;
+    private final Runnable volumeDoubleSeekPoll=new Runnable(){@Override public void run(){
+        if(!volumeDoubleSeekEnabled)return;
+        boolean playing=isPlaying();
+        long delayMs=playing?100L:500L;
+        if(audioManager!=null){
+            try{
+                int current=audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+                if(playing && !btProbeActive){
+                    VolumeDoubleTapSeek.Action action=volumeDoubleTap.observe(current,SystemClock.elapsedRealtime());
+                    if(action==VolumeDoubleTapSeek.Action.FORWARD_30S)seek(30000L);
+                    else if(action==VolumeDoubleTapSeek.Action.BACK_15S)seek(-15000L);
+                }else volumeDoubleTap.reset(current);
+            }catch(RuntimeException ignored){volumeDoubleTap.clear();}
+        }else volumeDoubleTap.clear();
+        if(volumeDoubleSeekEnabled)handler.postDelayed(this,delayMs);
+    }};
+    boolean isVolumeDoubleSeekEnabled(){return volumeDoubleSeekEnabled;}
+    void setVolumeDoubleSeekEnabled(boolean enabled){
+        volumeDoubleSeekEnabled=enabled;
+        handler.removeCallbacks(volumeDoubleSeekPoll);
+        volumeDoubleTap.clear();
+        if(enabled)handler.post(volumeDoubleSeekPoll);
+        getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit()
+            .putBoolean("double_volume_seek",enabled).apply();
+    }
     // Experimental 45-second, user-initiated read-only Bluetooth diagnostic.
     // Does not intercept volume or alter media commands. No background collection.
     private static final long BT_PROBE_LENGTH_MS=45000L;
@@ -170,6 +201,7 @@ public final class KeypadPlaybackService extends Service {
         try { repeatMode=PlaylistPlaybackOrder.Repeat.valueOf(savedRepeat); }
         catch (IllegalArgumentException ignored) { repeatMode=PlaylistPlaybackOrder.Repeat.OFF; }
         experimentalDoubleNext=settings.getBoolean("double_next_seek",false);
+        volumeDoubleSeekEnabled=settings.getBoolean("double_volume_seek",false);
         audiobookRewindSeconds=settings.getInt("audiobook_resume_rewind_seconds",0);
         if(audiobookRewindSeconds!=0 && audiobookRewindSeconds!=5 && audiobookRewindSeconds!=10)
             audiobookRewindSeconds=0;
@@ -209,6 +241,7 @@ public final class KeypadPlaybackService extends Service {
         mediaSession.setActive(true);
         updateMediaSession();
         handler.postDelayed(saveTick,5000);
+        if(volumeDoubleSeekEnabled)handler.post(volumeDoubleSeekPoll);
     }
     @Override public int onStartCommand(Intent intent,int flags,int startId) {
         // A foreground-service start is issued only on explicit Play/Resume.
@@ -624,6 +657,7 @@ public final class KeypadPlaybackService extends Service {
     private void notifyChanged(){if(listener!=null)listener.onPlaybackChanged();}
     private void error(String msg){lastError=msg;if(listener!=null)listener.onPlaybackError(msg);}
     @Override public void onDestroy(){
+        volumeDoubleSeekEnabled=false;handler.removeCallbacks(volumeDoubleSeekPoll);volumeDoubleTap.clear();
         finishBluetoothDiagnostic("Service closed before 45s");clearSleepTimer();handler.removeCallbacks(saveTick);handler.removeCallbacks(mediaFlush);transport.close();stopPlayer();
         if(mediaSession!=null){mediaSession.setActive(false);mediaSession.release();mediaSession=null;}
         super.onDestroy();

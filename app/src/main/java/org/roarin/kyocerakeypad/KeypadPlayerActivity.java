@@ -273,6 +273,18 @@ public final class KeypadPlayerActivity extends Activity {
             if(playback!=null){playback.cycleAudiobookRewind();showSettings();}
         });
         item("Import PC playlists (ADB transfer)",this::confirmPlaylistImport);
+        item("Experimental double VOLUME seek: "+
+            (playback==null?"Unavailable":(playback.isVolumeDoubleSeekEnabled()?"ON":"OFF")),()->{
+            if(playback==null){message("Playback service unavailable");return;}
+            playback.setVolumeDoubleSeekEnabled(!playback.isVolumeDoubleSeekEnabled());
+            showSettings();
+        });
+        item("Double VOLUME seek explanation",()->message(
+            "Experimental, defaults OFF. While playing, two quick volume increases seek forward 30s; " +
+            "two quick decreases seek back 15s. Android's volume still changes. " +
+            "Phone volume buttons can trigger it too; it cannot identify the headset. " +
+            "An index jump, a button hold, or a press at min/max volume may be missed. " +
+            "Turn OFF if normal volume adjustment skips unexpectedly."));
         item("Record Bluetooth volume/keys (45s)",()->{
             if(playback==null){message("Playback service unavailable");return;}
             if(!playback.isPlaying()){
