@@ -247,9 +247,9 @@ public final class KeypadPlayerActivity extends Activity {
         // No build timestamp is invented for an uncompiled source-only ZIP.
         message("Dumbplayer · DISPOSABLE SANDBOX\nApplication ID: "+getPackageName()+"\nVersion: "+BuildConfig.VERSION_NAME+
             "\nBuild configured UTC: "+BuildConfig.BUILD_UTC+
-            "\nSource candidate prepared: 2026-10-31"+
+            "\nSource candidate prepared: 2026-11-06"+
             "\nRelease date: Not released"+
-            "\nDEV9 source candidate for existing WQA365 sandbox; physical trial not certified."+
+            "\nDEV11 opt-in Bluetooth diagnostic source; real headset input test not certified."+
             "\nMade by GPT-6 and Aurora Williamsen"+
             "\nOffline player · No cloud upload");
     }
@@ -273,6 +273,15 @@ public final class KeypadPlayerActivity extends Activity {
             if(playback!=null){playback.cycleAudiobookRewind();showSettings();}
         });
         item("Import PC playlists (ADB transfer)",this::confirmPlaylistImport);
+        item("Record Bluetooth volume/keys (45s)",()->{
+            if(playback==null){message("Playback service unavailable");return;}
+            if(!playback.isPlaying()){
+                message("Start a track playing first, then start this 45-second diagnostic.");return;
+            }
+            if(playback.startBluetoothDiagnostic()){
+                message("Bluetooth diagnostic started for 45 seconds. You can close the flip. Press one Volume Up, two quick Up, one Down, two quick Down, then optionally Hold Next. It saves a small bt_probe_*.txt in the existing transfer folder. No controls are remapped.");
+            }else message("Bluetooth diagnostic already running, or audio service unavailable.");
+        });
         item("Sleep timer: set from Music or Audiobook Now Playing",()->message(
             "Start or resume a track, then choose Sleep timer in Now Playing. It pauses and saves the position."));
         item("← Home",this::showHome);

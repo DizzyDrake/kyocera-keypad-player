@@ -13,6 +13,7 @@ import java.util.Random;
 import android.util.AtomicFile;
 import org.roarin.kyocerakeypad.core.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 
 /**
  * WQB405 OFFLINE INTEGRATION PROTOTYPE — NOT SDK-COMPILED OR DEVICE-ACCEPTED.
@@ -39,6 +40,76 @@ public final class KeypadPlaybackService extends Service {
     private PlaylistPlaybackOrder.Repeat repeatMode = PlaylistPlaybackOrder.Repeat.OFF;
     final IBinder binder = new LocalBinder();
     final Handler handler = new Handler(Looper.getMainLooper());
+    // Experimental 45-second, user-initiated read-only Bluetooth diagnostic.
+    // Does not intercept volume or alter media commands. No background collection.
+    private static final long BT_PROBE_LENGTH_MS=45000L;
+    private static final long BT_PROBE_SAMPLE_MS=100L;
+    private boolean btProbeActive;
+    private long btProbeStarted;
+    private int btProbeLastVolume;
+    private StringBuilder btProbeNotes;
+    private String btProbeLastFile="";
+    private final Runnable btProbeSample=new Runnable(){@Override public void run(){
+        if(!btProbeActive)return;
+        long elapsed=SystemClock.elapsedRealtime()-btProbeStarted;
+        if(elapsed>=BT_PROBE_LENGTH_MS){finishBluetoothDiagnostic("45-second recording finished");return;}
+        if(audioManager!=null){
+            try{
+                int current=audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+                if(current!=btProbeLastVolume){
+                    btProbeNote("music_stream_volume " + btProbeLastVolume + " -> " + current);
+                    btProbeLastVolume=current;
+                }
+            }catch(RuntimeException e){btProbeNote("music_volume_read_error " + e.getClass().getSimpleName());}
+        }
+        handler.postDelayed(this,BT_PROBE_SAMPLE_MS);
+    }};
+    // Start while Dumbplayer is playing; the service remains running with the flip closed.
+    // The diagnostic records timing, media key codes, callbacks, and music volume INDEX only.
+    // It never records song titles, filenames, phone identifiers or Bluetooth addresses.
+    boolean startBluetoothDiagnostic(){
+        if(btProbeActive || audioManager==null)return false;
+        btProbeActive=true;
+        btProbeStarted=SystemClock.elapsedRealtime();
+        btProbeNotes=new StringBuilder(2048);
+        try{btProbeLastVolume=audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);}
+        catch(RuntimeException e){btProbeLastVolume=-1;}
+        btProbeNote("START music_stream_volume="+btProbeLastVolume+" max="+
+            audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+        btProbeNote("ACTION: tap Volume Up once, double Up, tap Down once, double Down, optionally hold Next");
+        btProbeNote("LIMIT: Android may not deliver volume keys to a MediaSession; absence is inconclusive");
+        handler.post(btProbeSample);
+        return true;
+    }
+    private void btProbeNote(String event){
+        if(!btProbeActive || btProbeNotes==null)return;
+        if(btProbeNotes.length()>32000)return; // bounded, even if a noisy headset repeats
+        btProbeNotes.append(SystemClock.elapsedRealtime()-btProbeStarted)
+            .append("ms  ").append(event).append('\n');
+    }
+    private void finishBluetoothDiagnostic(String reason){
+        if(!btProbeActive)return;
+        btProbeNote("END " + reason);
+        btProbeActive=false;
+        handler.removeCallbacks(btProbeSample);
+        try{
+            File dir=getExternalFilesDir("transfer");
+            if(dir==null || (!dir.isDirectory() && !dir.mkdirs()))throw new IOException("Transfer directory unavailable");
+            File dest=new File(dir,"bt_probe_"+System.currentTimeMillis()+".txt");
+            AtomicFile output=new AtomicFile(dest);
+            FileOutputStream out=null;
+            try{
+                out=output.startWrite();
+                out.write(btProbeNotes.toString().getBytes(StandardCharsets.UTF_8));
+                output.finishWrite(out);
+            }catch(Exception e){if(out!=null)output.failWrite(out);throw e;}
+            btProbeLastFile=dest.getAbsolutePath();
+        }catch(Exception e){
+            btProbeLastFile="SAVE FAILED: "+e.getClass().getSimpleName();
+            android.util.Log.w("DumbplayerBtProbe",btProbeLastFile);
+        }finally{btProbeNotes=null;}
+    }
+    String latestBluetoothDiagnosticPath(){return btProbeLastFile;}
     PlayerState state = new PlayerState();
     boolean recoveryMode, activeBook, prepared;
     MediaPlayer player;
@@ -110,15 +181,17 @@ public final class KeypadPlaybackService extends Service {
         mediaSession=new MediaSession(this,"KeypadPlaybackWQB405");
         mediaSession.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS|MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mediaSession.setCallback(new MediaSession.Callback(){
-            @Override public void onPlay(){ explicitPlay(); }
-            @Override public void onPause(){ pause(); }
-            @Override public void onStop(){ stopPlayer(); }
-            @Override public void onSkipToNext(){ skip(1); }
-            @Override public void onSkipToPrevious(){ skip(-1); }
-            @Override public void onSeekTo(long pos){ seekAbsolute(pos); }
+            @Override public void onPlay(){ btProbeNote("MediaSession.onPlay"); explicitPlay(); }
+            @Override public void onPause(){ btProbeNote("MediaSession.onPause"); pause(); }
+            @Override public void onStop(){ btProbeNote("MediaSession.onStop"); stopPlayer(); }
+            @Override public void onSkipToNext(){ btProbeNote("MediaSession.onSkipToNext"); skip(1); }
+            @Override public void onSkipToPrevious(){ btProbeNote("MediaSession.onSkipToPrevious"); skip(-1); }
+            @Override public void onSeekTo(long pos){ btProbeNote("MediaSession.onSeekTo"); seekAbsolute(pos); }
             @Override public boolean onMediaButtonEvent(Intent eventIntent){
                 KeyEvent key=eventIntent==null?null:eventIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
-                if(key==null)return false;
+                if(key==null){btProbeNote("MediaSession.onMediaButtonEvent: missing KeyEvent");return false;}
+                btProbeNote("MediaSession.onMediaButtonEvent key="+KeyEvent.keyCodeToString(key.getKeyCode())+
+                    " action="+key.getAction()+" repeat="+key.getRepeatCount());
                 if(key.getAction()==KeyEvent.ACTION_DOWN && key.getRepeatCount()==0){
                     MediaTransportSequencer.Key mapped=mapMediaKey(key.getKeyCode());
                     if(mapped==MediaTransportSequencer.Key.UNKNOWN)return false;
@@ -551,7 +624,7 @@ public final class KeypadPlaybackService extends Service {
     private void notifyChanged(){if(listener!=null)listener.onPlaybackChanged();}
     private void error(String msg){lastError=msg;if(listener!=null)listener.onPlaybackError(msg);}
     @Override public void onDestroy(){
-        clearSleepTimer();handler.removeCallbacks(saveTick);handler.removeCallbacks(mediaFlush);transport.close();stopPlayer();
+        finishBluetoothDiagnostic("Service closed before 45s");clearSleepTimer();handler.removeCallbacks(saveTick);handler.removeCallbacks(mediaFlush);transport.close();stopPlayer();
         if(mediaSession!=null){mediaSession.setActive(false);mediaSession.release();mediaSession=null;}
         super.onDestroy();
     }
