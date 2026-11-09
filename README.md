@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/34557544/README.md)
 # Dumbplayer DEV13 — playlist import and Bluetooth owner trial
 
 **2026-11-08 source candidate only.** Derived from archived DEV12, preserving original source and existing WQA365 package identity. No phone installation, APK compilation, APK signing, or on-device DEV13 tests were performed for this bundle.
@@ -48,3 +47,45 @@ See `DEV13_TEST_REPORT.json` and `DEV12_TO_DEV13.patch` in the root. Offline Jav
 - Previous DEV12 ZIP and stale-import WIP patch remain separately preserved in the ChatGPT Library project.
 - No private playlists, audio files, device logs, APK, keystore, or account credentials are bundled in this source ZIP.
 - Parent Work Queue: `WQ-20261023-137`. This is one integration continuation, not a new parent task.
+
+## DEV13 R3: current-library snapshot + explicit unavailable-reference cleanup (November 8, 2026)
+
+- **Export metadata for PC** now builds a **detached** export view using only safe
+  track IDs observed by the latest audio scan. Old or changed MediaStore IDs,
+  playlist references, orphan bookmarks, and invalid playback contexts are omitted
+  **from the exported JSON only**, with counts in the confirmation/result.
+  Saved playlists and physical audio files are not deleted by export.
+- **Listening settings → Rescan local audio** refreshes the phone's observation.
+- **Listening settings → Review / clear unavailable audio references** gives a
+  counts-and-consequences confirmation before deleting stale saved references.
+  The app keeps playlist names and remaining track order, and never deletes audio.
+  A temporarily disconnected/unscanned file can look unavailable; rescan first.
+- **Browse/search local audio** hides unavailable entries. Saved playlists still
+  display unavailable placeholders until explicit cleanup.
+- **Import PC playlists** accepts stale snapshot IDs and checks incoming track
+  identities against the *currently observed* usable IDs, skipping missing IDs
+  with a warning. Filename remains exactly `pc_playlist_import_v1.json`.
+- Playlist Desk v0.16 (and compatible derivatives) can reattach old edited
+  playlists to a fresh phone snapshot using matching relative audio paths. Rename
+  or move a file and that exact-path reattachment may fail; no speculative title
+  matching occurs.
+
+### DEV13 first installation after DEV12 (owner chose blank slate)
+
+The original DEV12 debug certificate differs from Aurora's new permanent signing
+certificate `C0:A3:09:29:88:3D:4E:56:13:5F:40:21:93:BB:3A:D4:12:8F:31:22:97:44:06:B3:CF:EE:9A:B6:D8:4A:3B:8C`.
+**Do not use** `dev13-update-signed.yml` with a substitute key: it deliberately
+checks the *old* DEV12 certificate. For the clean DEV13 installation, use
+`.github/workflows/dev13-first-install-unsigned.yml` to build and download an
+**UNSIGNED, NOT INSTALLABLE** APK, then sign it locally with the new permanent key
+using Android SDK build-tools (`zipalign` and `apksigner`). Verify the new
+certificate before installation. Android will not install it over DEV12 because
+signatures differ. Before uninstalling DEV12, retain the independently backed-up
+private-state TAR (owner-reported SHA-256
+`7103B9B89D15018842F67FD5354772DF752B70B5E7DD8BCB60F7B99BC7AC6306`)
+and external transfer folder. A fresh install intentionally starts without DEV12
+app data; saved Bridge JSON can be imported afterward. Do not commit or upload
+signing keystores or passwords. Subsequent builds should reuse this same key.
+
+**Verification scope:** Pure-Java and static source tests pass; this change has
+not been Android SDK-compiled or tested on the physical Kyocera in this session.

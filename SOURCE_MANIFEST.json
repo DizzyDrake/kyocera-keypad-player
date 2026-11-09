@@ -1,13 +1,18 @@
 {
   "schema": "source-archive-manifest-v1",
-  "name": "Dumbplayer DEV13 R2 source-only \u2014 release lint ExpiredTargetSdkVersion narrow suppression",
-  "created_utc": "2026-11-08T23:46:40.307527+00:00",
-  "parent_zip_sha256": "3bf51e6b3726402b580d65e79cde56cffd5014d81bdc1c80e0c0ef2a306a086c",
+  "name": "Dumbplayer DEV13 R3 — current-library export, confirmed missing-ID cleanup, clean-install unsigned workflow",
+  "created_utc": "2026-11-09T01:37:03.366714Z",
+  "parent_zip_sha256": "d7571093bacd43fca60ae22f0f250dcfaad6b26600e93da3e572935f2afde3eb",
   "entries": [
     {
       "path": ".github/workflows/dev13-compile-check.yml",
       "size": 1409,
       "sha256": "f0c9af1c783cbb7e2d00b3f3a565cbbfdad96e6f8b341d2dfdd3365e32ce9257"
+    },
+    {
+      "path": ".github/workflows/dev13-first-install-unsigned.yml",
+      "size": 1993,
+      "sha256": "9c67b2237a6e603ce68f2635cb684adb398589dda37eefcf5367692b593122f2"
     },
     {
       "path": ".github/workflows/dev13-update-signed.yml",
@@ -86,8 +91,8 @@
     },
     {
       "path": "README.md",
-      "size": 5383,
-      "sha256": "5f3498bafe5121e695d654944fc3ebcd0730799a4abf533aa3f8528081950c33"
+      "size": 8228,
+      "sha256": "8d7d92f1f84c914acbdb25c6beec9f4e3c2af872751271441fa76deb025712c7"
     },
     {
       "path": "README_DEV10_INHERITED.md",
@@ -216,8 +221,8 @@
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java",
-      "size": 68874,
-      "sha256": "d61459c8b2626311ed6d25a43ca109585f7dfa106fa0faa27056c47dd54b4c5c"
+      "size": 73710,
+      "sha256": "c4f5187ad879a97c6f77f841d7ea968049735992b21bf6412fa096a30cf9f8fe"
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java.orig",
@@ -248,6 +253,11 @@
       "path": "app/src/main/java/org/roarin/kyocerakeypad/core/HomeMenuOrder.java",
       "size": 1901,
       "sha256": "251c1d49e906bf3fd5d98014fb8aa32a7d046b1147264131e40ec66408306d6f"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/LibraryAvailability.java",
+      "size": 3878,
+      "sha256": "60a943c98c5fab66b0a683e79178a39baeb171f4bd7cbcdf5512d8f11c837e60"
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/core/MediaTransportSequencer.java",
@@ -360,6 +370,11 @@
       "sha256": "0b6512fab5337090ea287ea42f5b22b06058ab5915cbc1966a8f66b53d31463e"
     },
     {
+      "path": "tests/LibraryAvailabilityTests.java",
+      "size": 4686,
+      "sha256": "90ea928339c72553d3850bac3702ac831fc319038114b93d8500eba202a84922"
+    },
+    {
       "path": "tests/MediaTransportSequencerTests.java",
       "size": 3171,
       "sha256": "781bb674511eb315980351161647a2279712646b5fe3ebfe90e583b07278e92f"
@@ -461,8 +476,8 @@
     },
     {
       "path": "tests/run_bluetooth_volume_seek_smoke.sh",
-      "size": 338,
-      "sha256": "7b2a2a0911d932cdae208b944136f09e2c4528db13cb314add799aa5355bbe79"
+      "size": 867,
+      "sha256": "1c13959b55910f4b915d7d5249bfc72d018a83441fff4849bcb655c962479624"
     },
     {
       "path": "tests/run_core_tests.sh",
@@ -511,8 +526,8 @@
     },
     {
       "path": "tests/test_dev13_integration_source.py",
-      "size": 3220,
-      "sha256": "e7626a5c1bc4047e5f4db64110123a70b0901b22bcff36e7a5113ccde71bcbcb"
+      "size": 3230,
+      "sha256": "f66d2551a0fe8189b842711c52415e92efaa06d62600b8550861b1d07cc623ba"
     },
     {
       "path": "tests/test_dev5_playlist_wiring.py",
@@ -575,14 +590,19 @@
       "sha256": "9b4658622dafbefc9d64ff7c8c556fc3fea55a75abdbfc3e21b120f302ee2d3d"
     },
     {
+      "path": "tests/test_library_availability_source.py",
+      "size": 1823,
+      "sha256": "e9e4c2e9b981a4b463f616266ad7c876138af62cd3afa1595416ebc0d223734f"
+    },
+    {
       "path": "tests/test_service_lifecycle_source.py",
       "size": 3110,
       "sha256": "0c9693444b72dacbfdf4ae3d3c18f83bf4bea113b07f5b0338e4708a7649787e"
     },
     {
       "path": "tests/test_stale_import_source.py",
-      "size": 1948,
-      "sha256": "5a460a51fd104199b53247b0f70be7b74882734fea22ee0e1e23527f25f4cbe5"
+      "size": 1958,
+      "sha256": "03b693ab29cc687b7a03b27b17b27cd75f9fd3ae42dd88fdfd119dd1f9bc10c6"
     },
     {
       "path": "tests/test_wqa355_mutation_wiring.py",

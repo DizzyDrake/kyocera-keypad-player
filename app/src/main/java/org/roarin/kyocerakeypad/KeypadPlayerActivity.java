@@ -24,6 +24,7 @@ import org.roarin.kyocerakeypad.core.PlaybackGate;
 import org.roarin.kyocerakeypad.core.AudioFocusGate;
 import org.roarin.kyocerakeypad.core.CompletionPolicy;
 import org.roarin.kyocerakeypad.core.PhoneSnapshotExport;
+import org.roarin.kyocerakeypad.core.LibraryAvailability;
 import org.roarin.kyocerakeypad.core.PhonePlaylistImport;
 import org.json.*;
 import java.nio.charset.StandardCharsets;
@@ -281,6 +282,8 @@ public final class KeypadPlayerActivity extends Activity {
         item("Audiobook resume rewind: "+(playback==null?"Off":rewindLabel(playback.audiobookRewindSeconds())),()->{
             if(playback!=null){playback.cycleAudiobookRewind();showSettings();}
         });
+        item("Rescan local audio",this::scanLibrary);
+        item("Review / clear unavailable audio references",this::confirmUnavailableCleanup);
         item("Import PC playlists (ADB transfer)",this::confirmPlaylistImport);
         item("Experimental double VOLUME seek: "+
             (playback==null?"Unavailable":(playback.isVolumeDoubleSeekEnabled()?"ON":"OFF")),()->{
@@ -352,7 +355,10 @@ public final class KeypadPlayerActivity extends Activity {
         }));
         for(PlayerState.Playlist p:state.playlists.values())if(p.audiobook==book){
             playlistRowIds.add(p.id);
-            item(p.name+" ("+p.entries.size()+" tracks)",()->{selectedPlaylist=p.id;showDetail();});
+            int unavailable=0;
+            for(String key:p.entries)if(!state.tracks.containsKey(key) || missing.contains(key) || conflicts.contains(key))unavailable++;
+            item(p.name+" ("+p.entries.size()+" tracks"+
+                (unavailable>0?", "+unavailable+" unavailable":"")+")",()->{selectedPlaylist=p.id;showDetail();});
         }
         item("← Back",this::showHome);
         render(book?"Audiobook playlists":"Music playlists","Center opens playlist · RIGHT plays highlighted playlist · no autoplay");
@@ -499,6 +505,9 @@ public final class KeypadPlayerActivity extends Activity {
         ArrayList<PlayerState.Track> sorted=new ArrayList<>(state.tracks.values());
         sorted.sort((a,b)->a.title.compareToIgnoreCase(b.title));
         for(PlayerState.Track t:sorted){
+            // The library browser shows only audio IDs confirmed in the latest scan.
+            // Stale playlist entries remain visible in their playlist until cleanup.
+            if(missing.contains(t.key) || conflicts.contains(t.key) || !mediaPaths.containsKey(t.key))continue;
             String hay=(t.title+" "+t.artist+" "+t.album+" "+t.folder).toLowerCase(Locale.ROOT);
             if(!hay.contains(f))continue;
             visibleLibraryTitles.add(t.title);
@@ -856,40 +865,111 @@ public final class KeypadPlayerActivity extends Activity {
             if(!missing.isEmpty()||!conflicts.isEmpty())message("Some previously saved audio IDs are missing or changed. They will not play until reconciled; no automatic title-based substitutions.");
         }catch(Exception e){message("Audio scan failed: "+e.getClass().getSimpleName());}
     }
-    /** Manual metadata-only ADB transfer: no audio, network or automatic import. */
-    private void confirmMetadataExport(){
-        if(recoveryMode || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
-            message("Export blocked: audio scan incomplete, missing or changed tracks. No files exported.");return;
+    /**
+     * Select only safe, observed MediaStore IDs; an old ID must never be matched
+     * automatically to a new song. Exclude any case-folded duplicate paths, too.
+     */
+    private Set<String> currentlyAvailableTrackKeys(){
+        HashSet<String> available=new HashSet<>(), ambiguous=new HashSet<>();
+        HashMap<String,String> byPath=new HashMap<>();
+        for(String key:state.tracks.keySet()){
+            if(missing.contains(key) || conflicts.contains(key))continue;
+            String path=mediaPaths.get(key);
+            if(path==null || path.isEmpty())continue;
+            String folded=path.toLowerCase(Locale.ROOT);
+            String other=byPath.putIfAbsent(folded,key);
+            if(other!=null){ambiguous.add(other);ambiguous.add(key);}
+            else available.add(key);
         }
-        new AlertDialog.Builder(this).setTitle("Export metadata only?")
-            .setMessage("Creates a local JSON snapshot of track names/paths, playlists, bookmarks and positions in this app's transfer folder. No audio copied. Filenames can be private. Use ADB only if you choose to later. Import is available under Listening settings after manual ADB transfer.")
+        available.removeAll(ambiguous);
+        return available;
+    }
+    private LibraryAvailability.Preview currentAvailability(){
+        return LibraryAvailability.project(state,currentlyAvailableTrackKeys());
+    }
+    /**
+     * Deletion is opt-in and limited to saved references, never audio files.
+     * A fresh scan after commit treats changed same-ID media as a new observed
+     * track, without restoring its old playlist/bookmark identity.
+     */
+    private void confirmUnavailableCleanup(){
+        if(recoveryMode || !mediaReady || playback==null){
+            message("Rescan the audio library before reviewing unavailable tracks.");return;
+        }
+        final Set<String> available=currentlyAvailableTrackKeys();
+        final LibraryAvailability.Preview preview=LibraryAvailability.project(state,available);
+        if(preview.unavailableTracks==0 && preview.removedPlaylistEntries==0){
+            message("No unavailable track references found. Nothing changed.");return;
+        }
+        new AlertDialog.Builder(this).setTitle("Clear unavailable audio references?")
+            .setMessage("Unavailable/changed audio IDs: "+preview.unavailableTracks+"\n"+
+                "Playlist entries to remove: "+preview.removedPlaylistEntries+
+                " across "+preview.affectedPlaylists+" playlists\n"+
+                "Bookmarks to remove: "+preview.removedBookmarks+"\n"+
+                "Listening positions to reset: "+preview.clearedProgress+"\n\n"+
+                "A missing file might be temporarily unavailable. This permanently removes " +
+                "its saved references; it does not delete or rename any audio file. " +
+                "Playlists and the order of their remaining tracks are kept.")
+            .setNegativeButton("Cancel",(d,w)->{})
+            .setPositiveButton("Remove references",(d,w)->{
+                if(recoveryMode || !mediaReady || playback==null ||
+                        !currentlyAvailableTrackKeys().equals(available)){
+                    message("Library changed since review. Rescan and review again.");return;
+                }
+                if(!stopPlayer()){
+                    message("Cleanup canceled: could not safely save/stop playback.");return;
+                }
+                if(commitMutation("Clear unavailable audio references",
+                        next->LibraryAvailability.pruneInPlace(next,available))){
+                    selectedTrack="";stopPreview();
+                    scanLibrary();
+                    message("Removed stale saved references. Remaining playlist order and audio files are unchanged.");
+                }
+            }).show();
+    }
+    /** Manual metadata-only export: stale IDs are omitted from a detached view. */
+    private void confirmMetadataExport(){
+        if(recoveryMode || !mediaReady){
+            message("Export unavailable until the audio scan has finished.");return;
+        }
+        final LibraryAvailability.Preview preview=currentAvailability();
+        new AlertDialog.Builder(this).setTitle("Export current audio snapshot?")
+            .setMessage("Exports usable tracks and playlists to the transfer folder, without copying audio. " +
+                "Unavailable/changed IDs omitted: "+preview.unavailableTracks+". " +
+                "Playlist references omitted: "+preview.removedPlaylistEntries+". " +
+                "Unavailable bookmarks omitted: "+preview.removedBookmarks+". " +
+                "The saved playlists remain unchanged. No title-based substitutions. " +
+                "This export uses the current scanned IDs, so a PC import may need remapping.")
             .setNegativeButton("Cancel",(d,w)->{})
             .setPositiveButton("Export",(d,w)->exportMetadata()).show();
     }
     private void exportMetadata(){
-        if(recoveryMode || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
-            message("Export blocked: library status changed.");return;
-        }
+        if(recoveryMode || !mediaReady){message("Export unavailable: audio scan incomplete.");return;}
         try {
             saveActivePosition();
-            if(!persist())throw new IOException("Current player state could not be saved");
-            byte[] json=PhoneSnapshotExport.encode(state,mediaPaths);
+            if(!persist())throw new IOException("Current playback position could not be saved");
+            LibraryAvailability.Preview preview=currentAvailability();
+            byte[] json=PhoneSnapshotExport.encode(preview.state,mediaPaths);
             File dir=getExternalFilesDir("transfer");
-            if(dir==null || !dir.isDirectory())throw new IOException("Transfer folder unavailable");
+            if(dir==null || (!dir.isDirectory() && !dir.mkdirs()))throw new IOException("Transfer folder unavailable");
             File dest=new File(dir,"phone_snapshot_"+UUID.randomUUID().toString()+".json");
             AtomicFile output=new AtomicFile(dest);
             FileOutputStream out=null;
             try{out=output.startWrite();out.write(json);output.finishWrite(out);}
             catch(Exception error){if(out!=null)output.failWrite(out);throw error;}
-            message("Exported metadata only ("+json.length+" bytes) to: "+dest.getAbsolutePath()+"\nADB pull is owner-invoked. PC import requires separate confirmation.");
+            message("Exported current metadata ("+json.length+" bytes) to: "+dest.getAbsolutePath()+
+                "\nSkipped "+preview.unavailableTracks+" unavailable IDs, "+
+                preview.removedPlaylistEntries+" playlist entries and "+
+                preview.removedBookmarks+" bookmarks. No saved playlist edits or audio deletion. " +
+                "Retrieve by ADB when ready.");
         } catch(Exception error) {
-            message("Export refused/failed: "+error.getClass().getSimpleName()+" — "+error.getMessage());
+            message("Export failed: "+error.getClass().getSimpleName()+" — "+error.getMessage());
         }
     }
     /** Read only the one known transfer filename; never browse other user files. */
     private void confirmPlaylistImport(){
-        if(recoveryMode || playback==null || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
-            message("Import blocked until the audio library is ready and consistent.");return;
+        if(recoveryMode || playback==null || !mediaReady){
+            message("Import blocked until the audio scan is ready.");return;
         }
         File dir=getExternalFilesDir("transfer");
         if(dir==null){message("Transfer folder unavailable");return;}
@@ -904,8 +984,8 @@ public final class KeypadPlayerActivity extends Activity {
         return (String)value;
     }
     private void importPlaylists(File source){
-        if(recoveryMode || playback==null || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
-            message("Import blocked: audio library changed");return;
+        if(recoveryMode || playback==null || !mediaReady){
+            message("Import blocked: audio scan unavailable");return;
         }
         try{
             if(source.length()<=0 || source.length()>PhonePlaylistImport.MAX_BYTES)
@@ -945,11 +1025,13 @@ public final class KeypadPlayerActivity extends Activity {
             }
             // Stale snapshot identity is advisory, never grounds for refusal.
             // Preflight is read-only and happens before playback is interrupted.
-            final PhonePlaylistImport.Prepared prepared=PhonePlaylistImport.prepare(state,specs);
+            final Set<String> available=currentlyAvailableTrackKeys();
+            final LibraryAvailability.Preview view=LibraryAvailability.project(state,available);
+            final PhonePlaylistImport.Prepared prepared=PhonePlaylistImport.prepare(view.state,specs);
             String snapshotNote="Snapshot ID absent; import allowed.";
             if(!expected.isEmpty()){
                 try{
-                    String current=new JSONObject(new String(PhoneSnapshotExport.encode(state,mediaPaths),
+                    String current=new JSONObject(new String(PhoneSnapshotExport.encode(view.state,mediaPaths),
                         StandardCharsets.UTF_8)).getString("snapshot_id");
                     snapshotNote=expected.equals(current)?"Snapshot ID matches current state.":
                         "Snapshot ID differs; stale import explicitly allowed.";
@@ -971,7 +1053,8 @@ public final class KeypadPlayerActivity extends Activity {
                 .setMessage(summary)
                 .setNegativeButton("Cancel",(d,w)->{})
                 .setPositiveButton("Replace playlists",(d,w)->{
-                    if(recoveryMode || playback==null || !mediaReady || !missing.isEmpty() || !conflicts.isEmpty()){
+                    if(recoveryMode || playback==null || !mediaReady ||
+                            !currentlyAvailableTrackKeys().equals(available)){
                         message("Import blocked: audio library changed since preview");return;
                     }
                     if(!playback.stopPlayer()){

@@ -26,7 +26,7 @@ checks={
   'phone track identities preferred':'target.tracks.containsKey(key)' in imp,
   'missed references reported':'prepared.missingReferences' in a and 'prepared.affectedPlaylists' in a,
   'user confirmation required':'.setPositiveButton("Replace playlists"' in a,
-  'preflight happens before stopping':a.index('PhonePlaylistImport.prepare(state,specs)')<a.index('if(!playback.stopPlayer())',a.index('PhonePlaylistImport.prepare(state,specs)')),
+  'preflight happens before stopping':a.index('PhonePlaylistImport.prepare(view.state,specs)')<a.index('if(!playback.stopPlayer())',a.index('PhonePlaylistImport.prepare(view.state,specs)')),
   'file name exact':'pc_playlist_import_v1.json' in imp,
   'only app transfer folder': 'getExternalFilesDir("transfer")' in a,
   'no new network permission': 'android.permission.INTERNET' not in m,

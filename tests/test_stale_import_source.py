@@ -9,7 +9,7 @@ checks={
  'optional snapshot id': 'payload.has("expected_snapshot_id")' in source,
  'mismatched id is information': 'Snapshot ID differs; stale import explicitly allowed.' in source,
  'no old snapshot refusal': 'if(!expected.equals(current))' not in source,
- 'preview before stop': source.index('PhonePlaylistImport.prepare(state,specs)')<source.index('if(!playback.stopPlayer())',source.index('PhonePlaylistImport.prepare(state,specs)')),
+ 'preview before stop': source.index('PhonePlaylistImport.prepare(view.state,specs)')<source.index('if(!playback.stopPlayer())',source.index('PhonePlaylistImport.prepare(view.state,specs)')),
  'missing refs counted': 'prepared.missingReferences' in source,
  'positive confirmation required': '.setPositiveButton("Replace playlists"' in source,
  'explicit data loss warning': 'Unmatched entries will be lost from the ' in source,
