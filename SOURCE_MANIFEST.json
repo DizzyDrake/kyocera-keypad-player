@@ -1,8 +1,8 @@
 {
   "schema": "source-archive-manifest-v1",
-  "name": "Dumbplayer DEV13 integrated source-only — CI README correction R1",
-  "created_utc": "2026-11-08T23:26:05.599056+00:00",
-  "parent_zip_sha256": "1e4150e6bc002e51f017d19d65edead932d54504538664c23798e037a47218ae",
+  "name": "Dumbplayer DEV13 R2 source-only \u2014 release lint ExpiredTargetSdkVersion narrow suppression",
+  "created_utc": "2026-11-08T23:46:40.307527+00:00",
+  "parent_zip_sha256": "3bf51e6b3726402b580d65e79cde56cffd5014d81bdc1c80e0c0ef2a306a086c",
   "entries": [
     {
       "path": ".github/workflows/dev13-compile-check.yml",
@@ -201,8 +201,8 @@
     },
     {
       "path": "app/build.gradle",
-      "size": 895,
-      "sha256": "dd2b6dc92cb548d2eaca043f744833c61603ba1a00c75b7fdd199cb4dc3ed7ed"
+      "size": 1200,
+      "sha256": "8f597b924d9e083ab67e3a8ce778fdb740012f352d91735468cdb42dce53e8ac"
     },
     {
       "path": "app/src/main/AndroidManifest.xml",
