@@ -15,5 +15,11 @@ android {
         utcFormat.setTimeZone(java.util.TimeZone.getTimeZone('UTC'))
         buildConfigField 'String', 'BUILD_UTC', '\"' + utcFormat.format(new Date()) + '\"' 
     }
+    // The owner sideloads Dumbplayer onto Android 10; DEV13 retains targetSdk 29.
+    // Ignore only the Google Play target-age policy check for this private release.
+    // Preserve all other release lint checks and the separate signing guard.
+    lint {
+        disable 'ExpiredTargetSdkVersion'
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
 }
