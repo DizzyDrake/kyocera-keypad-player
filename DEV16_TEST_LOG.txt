@@ -1,0 +1,177 @@
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+PASS 27 active-playlist plan and durable mutation checks
+PASS 26 AlphabetJump assertions
+PASS 18 audio focus gate and fictional state assertions (pure Java; Android uncompiled)
+PASS 17 completion-policy assertions (pure Java; no Android execution)
+PASS 21 completion-context assertions (real Java core, fictional tracks)
+PASS 40 actual-core fictional rollback assertions; Android not executed
+PASS 12 fictional state/serialization assertions; Android playback not executed
+25/25 HomeMenuOrder model tests PASS
+PASS 24 missing-media projection/cleanup assertions (fictional pure Java)
+PASS 31 MediaTransportSequencer checks
+PASS 84 mutation commit assertions (fictional pure Java)
+25/25 Now Playing navigation checks PASS
+PhonePlaylistImport PASS 17 assertions (pure Java; no Android UI/ADB test)
+PASS 10 playback gate assertions (pure Java; Android uncompiled)
+PASS 23 playlist and media-sequencer checks
+PlaylistReorderDraftTests 32/32 PASS
+PASS 16 RemoteSkipPolicy combinations
+PASS 22 fictional rollback assertions (pure Java; no Android I/O)
+SleepTimerPolicyTests: 22 checks PASS
+PASS 24 snapshot export assertions (pure Java; Android uncompiled)
+StalePlaylistImport PASS 24 assertions (pure Java, no Android UI/phone)
+PASS 31 assertions (pure Java core; Android UI not compiled)
+PASS 24 volume detector assertions
+PASS 22 DEV16 source-level checks
+PASS same package ID
+PASS version increments instead of replacing installed build
+PASS normal release disables persisted double-volume
+PASS setter cannot enable double-volume in release
+PASS legacy volume poll logic survives only for diagnostic
+PASS debug-only volume menu
+PASS no release volume menu entry
+PASS debug-only volume explanation
+PASS physical media buttons intact
+PASS pause keeps paused controls
+PASS focus loss keeps paused controls
+PASS focus gain does not autoplay
+PASS focus request only on explicit play
+PASS focus rejected still shows resume controls
+PASS paused controls require prepared player
+PASS paused controls leave foreground
+PASS paused controls not stopSelf
+PASS paused controls notify Android
+PASS state update retains paused notification
+PASS notification has play pending intent
+PASS notification is nonongoing when paused
+PASS notification MediaStyle tied to live MediaSession
+PASS resume command does not retire prepared pause
+PASS explicit stop removes notification
+PASS onDestroy clears stale notification
+PASS Android media playback service declared
+PASS music may auto duck but books pause
+PASS no auto resume after process death
+PASS no network permission
+PASS focus gate still requires explicit user play
+DEV15 source contract 30 / 30
+PASS candidate v18 retains original app identity
+PASS distinct music and book shuffle settings
+PASS preferences stored separately
+PASS nonactive toggle cannot change session
+PASS music playlist toggle scoped
+PASS now playing toggle scoped
+PASS home/back do not pause
+PASS home link not saved order
+PASS active list navigation
+PASS active list uses session shuffle when valid
+PASS active list keyboard return
+PASS play selected track is explicit
+PASS remove requires explicit confirmation
+PASS service writes detached copy before releasing player
+PASS service refuses stale track key
+PASS active shuffle order retains survivors
+PASS current removal never writes old media position into new track
+PASS no file delete in removal service
+PASS legacy progress still separately saved
+PASS double next hidden in release
+PASS bluetooth recorder hidden in release
+PASS double volume explicitly debug-only
+PASS signing secret not in code
+DEV14 source checks 23 / 23
+PASS package unchanged
+PASS new version code
+PASS new version name
+PASS header is build-derived
+PASS old hardcoded header removed
+PASS up rewinds 15
+PASS down advances 30
+PASS Bluetooth help corrected
+PASS volume disabled in ordinary build
+PASS no volume hijacking
+PASS no remote routing
+PASS stale IDs advisory
+PASS missing snapshot accepted
+PASS phone track identities preferred
+PASS missed references reported
+PASS user confirmation required
+PASS preflight happens before stopping
+PASS file name exact
+PASS only app transfer folder
+PASS no new network permission
+PASS signing guard uses uploaded APK fingerprint
+PASS signing mismatch fails
+PASS signing key only in secrets
+PASS signing checked before artifact
+PASS build workflows separate
+INTEGRATION 25/25
+PASS same Android applicationId
+PASS source-only new version
+PASS volume detection default OFF
+PASS debug-only settings toggle
+PASS explanation warns local volume keys
+PASS single index only
+PASS same direction and bounded gap
+PASS 650ms window
+PASS 100ms samples while playing
+PASS requires active playback
+PASS forward 30s
+PASS backward 15s
+PASS normal volume unchanged
+PASS no remote audio routing
+PASS keeps existing media control dispatcher
+PASS existing diagnostic still available
+PASS disable samples after shutdown
+PASS no new Bluetooth or internet permissions
+PASS no new package name
+ASSERT 19 / 19
+PASS same package identity
+PASS new version code 18
+PASS unchanged Bluetooth media transport timing
+PASS manual opt-in 45s window
+PASS no opt-in when paused
+PASS 100ms bounded observation
+PASS music volume read only
+PASS media callback logging
+PASS captures transport callbacks
+PASS transfer folder output
+PASS unregisters sampling on close
+PASS no new audio routing
+PASS no programmatic volume change
+PASS no new permissions
+PASS diagnostic retained and new feature disclosed
+15/15 diagnostic source assertions
+PASS settings cleanup
+PASS settings rescan
+PASS cleanup dialog confirmation
+PASS transactional cleanup
+PASS safe playback stop before cleanup
+PASS cleanup rescan afterwards
+PASS browser excludes unavailable
+PASS snapshot projected
+PASS export no missing gate
+PASS import preflight projected
+PASS stale imports no missing gate
+PASS no title substitution
+PASS path collision guard
+PASS audio preserved warning
+14/14 safe source wiring checks PASS
+PASS correct schema retained
+PASS optional snapshot id
+PASS mismatched id is information
+PASS no old snapshot refusal
+PASS preview before stop
+PASS missing refs counted
+PASS positive confirmation required
+PASS explicit data loss warning
+PASS uses prepared valid subset
+PASS transactional mutation retained
+PASS tracks still keyed by identity
+PASS duplicate ids and names still rejected
+PASS duplicate track identities still rejected
+PASS no phone file deletion
+PASS files remain bounded
+15/15 source checks PASS
+DEV16 host source checks passed; no Android SDK/device test

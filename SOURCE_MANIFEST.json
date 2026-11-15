@@ -1,8 +1,13 @@
 {
   "schema": "source-archive-manifest-v1",
-  "name": "Dumbplayer DEV13 R3 — current-library export, confirmed missing-ID cleanup, clean-install unsigned workflow",
-  "created_utc": "2026-11-09T01:37:03.366714Z",
-  "parent_zip_sha256": "d7571093bacd43fca60ae22f0f250dcfaad6b26600e93da3e572935f2afde3eb",
+  "name": "Dumbplayer DEV16 per-mode remote Next/Previous seek controls (source only)",
+  "created_utc": "2026-11-11T18:48:30.732497+00:00",
+  "parents": {
+    "DEV13_R2_full_zip_sha256": "d7571093bacd43fca60ae22f0f250dcfaad6b26600e93da3e572935f2afde3eb",
+    "DEV13_R3_overlay_zip_sha256": "43e4e9ad8d41d73e410e23dd99f3bcdda07c7eac257b0ebaa20e299d5d6af6eb",
+    "DEV14_R1_overlay_zip_sha256": "f7cceb5a89678d179a00b7d6e4c6c48beb39aba15d83d3a3df8bd99e587bf9be",
+    "DEV15_R1_overlay_zip_sha256": "f95c02bd9a903a50d4f0457944dca9473542d39024ac3625db6beec981037547"
+  },
   "entries": [
     {
       "path": ".github/workflows/dev13-compile-check.yml",
@@ -20,6 +25,21 @@
       "sha256": "9978a20817437829c00bfb34b3e2550af985cc11ac8d38028d9033b8ec4dbc57"
     },
     {
+      "path": ".github/workflows/dev14-unsigned-local-sign.yml",
+      "size": 2263,
+      "sha256": "5e18ff699dcef5f54767422c1eae657784ca0bb9750409e908c679fe4a2ae5b2"
+    },
+    {
+      "path": ".github/workflows/dev15-unsigned-local-sign.yml",
+      "size": 1948,
+      "sha256": "2ad43c803c06134c4f4b4a37bdcd032e3910dea10f89888c403fd42daa4b7321"
+    },
+    {
+      "path": ".github/workflows/dev16-unsigned-local-sign.yml",
+      "size": 1948,
+      "sha256": "e133c6a9c849675ecd50e3b7f230715e4c405205ad0840ccddafdc783e03613a"
+    },
+    {
       "path": "00_READ_FIRST_DEV4.md",
       "size": 2917,
       "sha256": "114abee04825664015a3063e67bfb205390c5d9133f2fe8269cabf1f3d989857"
@@ -33,6 +53,26 @@
       "path": "DEV13_TEST_REPORT.json",
       "size": 2737,
       "sha256": "21fc34f3dfb793b1dc3b8e064834803308a23ccff64beac89dd6132f161c5130"
+    },
+    {
+      "path": "DEV14_CHANGED_FILE_HASHES.json",
+      "size": 4823,
+      "sha256": "034ad3ac4253c2febf7892f8325280ba58ad27d9a8d5dad464a87e409184d0e9"
+    },
+    {
+      "path": "DEV14_TEST_LOG.md",
+      "size": 2793,
+      "sha256": "aeadd322425808760add1709f8a01713e1da6ffd720a0c6a26c2a48dc28d4641"
+    },
+    {
+      "path": "DEV15_TEST_LOG.md",
+      "size": 1898,
+      "sha256": "39bdcc0bdc4a581b53bac1b83778fcf9021abaca47454a6ed4628fc93d7a51bb"
+    },
+    {
+      "path": "DEV16_TEST_LOG.txt",
+      "size": 6752,
+      "sha256": "9f2ecc1b97f06799c7f6691d45ace5e575914b2a773dbf89adade334df7ae3bd"
     },
     {
       "path": "LICENSE",
@@ -108,6 +148,21 @@
       "path": "README_DEV12_INHERITED.md",
       "size": 3138,
       "sha256": "a5eeff5bbdf794e9e0d7dbb6646635a26b90726d22e12e99df990d7087478f9a"
+    },
+    {
+      "path": "README_DEV14_OWNER_SOURCE_ONLY.md",
+      "size": 5906,
+      "sha256": "fbd6e0a564a4b1fc82ee5298738ed3b1434678e59ce9e445c50b2e2360a88781"
+    },
+    {
+      "path": "README_DEV15_OWNER_SOURCE_ONLY.md",
+      "size": 7032,
+      "sha256": "e85664ef58559fc69a0afbc4cec35149d59532b90b218a8fe13272258b7a536f"
+    },
+    {
+      "path": "README_DEV16_OWNER_SOURCE_ONLY.md",
+      "size": 3472,
+      "sha256": "f0e40ce3d24b23470382129e26ee53f63de0e9bdcf990761393419d3316a73b8"
     },
     {
       "path": "README_DEV4_HISTORICAL.md",
@@ -206,8 +261,8 @@
     },
     {
       "path": "app/build.gradle",
-      "size": 1200,
-      "sha256": "8f597b924d9e083ab67e3a8ce778fdb740012f352d91735468cdb42dce53e8ac"
+      "size": 1186,
+      "sha256": "be4f1bd80c78ca1f742077fea62f38ad8ab225fca97e4d241a6a65372164c85e"
     },
     {
       "path": "app/src/main/AndroidManifest.xml",
@@ -216,13 +271,13 @@
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlaybackService.java",
-      "size": 38572,
-      "sha256": "eb873cc824e66a12da2ae01fbc76d3f003eacd83e2e304ae01200b98fd212f2c"
+      "size": 45886,
+      "sha256": "97b2a5b3f00e6f4fa3a1835fb0a4e327ea10dc3de144ee73037cf79ed0592a97"
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java",
-      "size": 73710,
-      "sha256": "c4f5187ad879a97c6f77f841d7ea968049735992b21bf6412fa096a30cf9f8fe"
+      "size": 81605,
+      "sha256": "715a4616be6d4923d6cf1a1a2dcf9c3efac8de6b1d9fbbcef64b2e70e5c44046"
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java.orig",
@@ -291,13 +346,23 @@
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlaylistPlaybackOrder.java",
-      "size": 1936,
-      "sha256": "889902ac85e94bca895310cc56cfad699944c3bcb91f6691307c59f22810e44a"
+      "size": 2130,
+      "sha256": "7aaa7b33abd6446252438d647e3c45168bd470c9f0ac36d735f561d7f9cce28e"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlaylistRemovalPolicy.java",
+      "size": 1629,
+      "sha256": "b58f6160d9ce22bee75ff4c4865fdeaf8813b1afe6daaeb0f56ab47c09107f3d"
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlaylistReorderDraft.java",
       "size": 2716,
       "sha256": "1615d3faed21059b461c4e2378a5906e44d668658ffee1fd0b0175011d4ceb3c"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/RemoteSkipPolicy.java",
+      "size": 773,
+      "sha256": "22987320327b638d65cc8a9049918ba07fd601f3921c753bbacd82882638700f"
     },
     {
       "path": "app/src/main/java/org/roarin/kyocerakeypad/core/SleepTimerPolicy.java",
@@ -333,6 +398,11 @@
       "path": "settings.gradle",
       "size": 285,
       "sha256": "5a8ba2fc4c19359da32a0a9dcbc58552d09ea4b910732ce83eb1b44c55cab958"
+    },
+    {
+      "path": "tests/ActivePlaylistEditTests.java",
+      "size": 4502,
+      "sha256": "796c4950124f3bbaa1351611b047f42d74b33df498680199f96488f50d552b03"
     },
     {
       "path": "tests/AlphabetJumpTests.java",
@@ -410,6 +480,11 @@
       "sha256": "7a51fd01add7da39768a46a4ceb6f60e77ce45a46d474af5bb24120b0b2f44ec"
     },
     {
+      "path": "tests/RemoteSkipPolicyTests.java",
+      "size": 1136,
+      "sha256": "f81901e733adfc655ce057d123848f3dca65963cc8d8b405e2cf794f3464cd81"
+    },
+    {
       "path": "tests/RollbackProgressTests.java",
       "size": 3535,
       "sha256": "a6e1ec410808480e115752d446716e5eedea6bf1d12fa04a41c2eeacb76b2c62"
@@ -485,6 +560,16 @@
       "sha256": "5404c720a08460b8e2f7cd98ca660c01faaa036fe362e33790226e7e02f2f510"
     },
     {
+      "path": "tests/run_dev15_source_smoke.sh",
+      "size": 888,
+      "sha256": "15fe94a33be2d79544ed2787d49f79da9d9fadf68fb021ee40ddb36760a1978c"
+    },
+    {
+      "path": "tests/run_dev16_source_smoke.sh",
+      "size": 808,
+      "sha256": "6ab63e930bcd1bcae72861527a8e7cd076807c8d2a7d53048739964fc30dfe18"
+    },
+    {
       "path": "tests/run_dev5_feature_smoke.sh",
       "size": 601,
       "sha256": "e427466e99b79e818f013c4fac6940b778269098a6e3a05886423d8cd3e4cd3d"
@@ -516,73 +601,88 @@
     },
     {
       "path": "tests/test_bluetooth_double_volume_source.py",
-      "size": 2374,
-      "sha256": "25ff4cd4412d88ad584ada208d03985d49cb296a02913c6349d7c8f5425fcc5f"
+      "size": 2396,
+      "sha256": "2ea11a92127a7b06b7d1aa217474cd33b93273a2fe166e7d54dd8740710bc2ff"
     },
     {
       "path": "tests/test_bluetooth_probe_source.py",
       "size": 1909,
-      "sha256": "2a723217cb966fb3a472fa5ff667f71dd50b9cd1aa7f1bb6fb509077e8f48a5b"
+      "sha256": "1d334cda5adb9bb6df437e826d28ba9d436c9e7bf3839a86b57a316588549524"
     },
     {
       "path": "tests/test_dev13_integration_source.py",
-      "size": 3230,
-      "sha256": "f66d2551a0fe8189b842711c52415e92efaa06d62600b8550861b1d07cc623ba"
+      "size": 3266,
+      "sha256": "78df0134ab8b360de1572cbb2c4d9897a10b6f8bac8453bc600c756426cfda4b"
+    },
+    {
+      "path": "tests/test_dev14_active_playlist_source.py",
+      "size": 3853,
+      "sha256": "cab3f9500ab758eaf229af0672104cb0c935f759537695ad8bc830178f8e9ea1"
+    },
+    {
+      "path": "tests/test_dev15_interrupted_notification.py",
+      "size": 4833,
+      "sha256": "b69b6b7ca056e1d6ff4f9f2304389f95135e8d5c512f7bec09c5e04bb17b2aeb"
+    },
+    {
+      "path": "tests/test_dev16_remote_skip_source.py",
+      "size": 2723,
+      "sha256": "72c94a295680b0cde99e20d000935365e4854d6302d4a4e3d6a4bb1117b5c4a2"
     },
     {
       "path": "tests/test_dev5_playlist_wiring.py",
-      "size": 2596,
-      "sha256": "d8dbc6fd59426eec7a038adaa7d88ee6761c08dde8e0ac779e2d9526bb5c06c0"
+      "size": 2696,
+      "sha256": "8ae282b9eb89ccd865399140c0c9e90e20b01d4127002c4dee6d2db9fd700ef4"
     },
     {
       "path": "tests/test_dev6_playlist_compat.py",
-      "size": 2612,
-      "sha256": "b1275d119301e075d11c13833b52c024f1afca39fa25cfc7d023634cdb4a6cff"
+      "size": 2712,
+      "sha256": "b65e5b604ad785f418df1066ea7ab962239dce77e5340115aaeaed1d3aa6d098"
     },
     {
       "path": "tests/test_dev6_wiring.py",
-      "size": 2253,
-      "sha256": "4fed9d4ea3363ab8f9b5f117ce41aed69239782ff76e2125168334c991631b64"
+      "size": 2266,
+      "sha256": "47886fbf5fd2dac50c18b433f773885e8eb1622ab4b4b3621382930ef97a3180"
     },
     {
       "path": "tests/test_dev7_playlist_compat.py",
-      "size": 2612,
-      "sha256": "b370fac8198a50e54311cb050e653007b19a5ab9d6b0e67e82a4132051d204d8"
+      "size": 2730,
+      "sha256": "a5b29a1dfcd1537db17945f2d9c73df7e10c1b4f33ae42afa1ffe421a6e2395f"
     },
     {
       "path": "tests/test_dev7_sleep_wiring.py",
-      "size": 2253,
-      "sha256": "543cc47172d3769691b3f90c74b518914f1fd6efbfd1e5846f175753d1b62941"
+      "size": 2266,
+      "sha256": "09fb8ac88de5e14c74f6ad077e8b0b255e6b165434ff25f140bd5b3d61327bb4"
     },
     {
       "path": "tests/test_dev7_wiring.py",
-      "size": 2417,
-      "sha256": "7a1d871d04d578cff9703eeccf04ef2b35d390cf37afd98185f7e82f3dc4d762"
+      "size": 2430,
+      "sha256": "ada5e630b6e47353cb42a8bcb505b7228421602a3141b32242568fe37155bd44"
     },
     {
       "path": "tests/test_dev8_move_wiring.py",
-      "size": 3043,
-      "sha256": "9b8e7314627dedf1006bff32450e11b9be2400371720cedae68abb4ddd638ac3"
+      "size": 3049,
+      "sha256": "3cd873d37cb2689db4c5f9e84aacd22bd9ff3cee1f616eb4178d18832f9fe84c"
     },
     {
       "path": "tests/test_dev8_now_wiring.py",
-      "size": 2433,
-      "sha256": "f1e2ef51bea72d57698ae9c9e0cf04ed638da73b4de384ef2036bdf34ab50a6f"
+      "size": 2455,
+      "sha256": "f57b97c87a7f84addebd8de95b99ca7bb0a85e52959544e7b00775eb9ce70531"
     },
     {
       "path": "tests/test_dev8_playlist_compat.py",
-      "size": 2612,
-      "sha256": "6b042f1dc6b67ca2df90761c9cb18ea29a40acf9694322b3a0d0ee8b66afb455"
+      "size": 2730,
+      "sha256": "50df179909cda8cc96782ce66744c78297b6240ebd4547dc2bc5cd24eaf17708"
     },
     {
       "path": "tests/test_dev8_sleep_wiring.py",
-      "size": 2254,
-      "sha256": "44b465293f1607006e5b39a5971db2e80b06cece74549155ce7d5da006629966"
+      "size": 2261,
+      "sha256": "99ec1fdd6c00af33743dd01e485f57d654fe7bc722b0f7e4ec422d92f3998123"
     },
     {
       "path": "tests/test_dev9_home_wiring.py",
       "size": 2229,
-      "sha256": "aca6e7c69734b956f99335e47e397f6f7ad386488b31f2ec42380bdcad9c0b57"
+      "sha256": "69857dfac7cd3cc78ea1c9eca7cd5779df8acb2eb3944697a68e58e99db7371a"
     },
     {
       "path": "tests/test_keypad_prompt_contract.py",
@@ -596,8 +696,8 @@
     },
     {
       "path": "tests/test_service_lifecycle_source.py",
-      "size": 3110,
-      "sha256": "0c9693444b72dacbfdf4ae3d3c18f83bf4bea113b07f5b0338e4708a7649787e"
+      "size": 3154,
+      "sha256": "697618576d869503b67757ec912a11dab59874f0bbe34af44514fc3a699b5b90"
     },
     {
       "path": "tests/test_stale_import_source.py",
@@ -626,8 +726,8 @@
     },
     {
       "path": "tests/test_wqb405_service_wiring.py",
-      "size": 3920,
-      "sha256": "da0675e88cc9e5e25aefcf1c20cba70b18915c902952251d097b20d4fbc9af55"
+      "size": 3891,
+      "sha256": "cb88ad8709b600643340771d662730f466486c1620f06a3f42eb2b3460eb3a6a"
     },
     {
       "path": "tests/test_wqe082_failed_open.py",

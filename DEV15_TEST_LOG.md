@@ -1,0 +1,9 @@
+# DEV15 offline verification — 2026-11-11
+
+- Source baseline: DEV13 R2 full + DEV13 R3 changed-only + DEV14 R1 changed-only. No owner APK or media read.
+- Modified source: `KeypadPlaybackService.java`, `KeypadPlayerActivity.java`, `app/build.gradle`; added `tests/test_dev15_interrupted_notification.py`, `tests/run_dev15_source_smoke.sh`, optional DEV15 manual unsigned workflow; revised narrow historical source checks to reflect new version and debug-only double volume.
+- PASS: `bash tests/run_dev15_source_smoke.sh`: all **22** standalone pure-Java core test classes and selected seven Python source suites completed with exit 0. The six Python suites include 30/30 DEV15, 23/23 DEV14, 25/25 DEV13, 19/19 double volume, 15/15 Bluetooth diagnostics, 14/14 library availability and 15/15 stale import (7 Python scripts total; all exit 0).
+- PASS: `JavaCompiler` `JavacTask.parse()` on both changed Android Java compilation units (0 syntax errors), NOT Android SDK compile.
+- Earlier exploratory run of every inherited `test_*.py` had failures in version-hardened/older activity-only contracts, including an inherited wrong source-path test. The old `run_bluetooth_volume_seek_smoke.sh` fails on the obsolete DEV8 version check. These failures were *not* fixed by pretending the old architecture remains. No full-green historical script claim.
+- Earlier new test run initially failed **1/30** due a test using `focus.onExplicitRequest` instead of the actual service identifier `focusGate.onExplicitRequest`; the test was corrected; current 30/30 pass. This was a fixture name error, not observed Android behavior.
+- Future device proof required: Android 10 notification persistence, MediaSession media-button routing with flip closed, SMS ducking/pause differences for music/book, headset Play and notification Play from the interrupted state, call pause, actual Android SDK compile/signature.

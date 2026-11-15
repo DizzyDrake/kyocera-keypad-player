@@ -1,0 +1,138 @@
+{
+  "schema": "dev14-repository-relative-changes-v1",
+  "description": "DEV14 source-only patch for R2+R3 exact parent",
+  "parent_r2_zip_sha256": "d7571093bacd43fca60ae22f0f250dcfaad6b26600e93da3e572935f2afde3eb",
+  "parent_r3_zip_sha256": "43e4e9ad8d41d73e410e23dd99f3bcdda07c7eac257b0ebaa20e299d5d6af6eb",
+  "changed_files": [
+    {
+      "path": ".github/workflows/dev14-unsigned-local-sign.yml",
+      "size": 2263,
+      "sha256": "5e18ff699dcef5f54767422c1eae657784ca0bb9750409e908c679fe4a2ae5b2"
+    },
+    {
+      "path": "DEV14_TEST_LOG.md",
+      "size": 2793,
+      "sha256": "aeadd322425808760add1709f8a01713e1da6ffd720a0c6a26c2a48dc28d4641"
+    },
+    {
+      "path": "README_DEV14_OWNER_SOURCE_ONLY.md",
+      "size": 5906,
+      "sha256": "fbd6e0a564a4b1fc82ee5298738ed3b1434678e59ce9e445c50b2e2360a88781"
+    },
+    {
+      "path": "app/build.gradle",
+      "size": 1194,
+      "sha256": "395df42bab639f931f72b235623f7a10010921766afedbd133068e151571ef6b"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlaybackService.java",
+      "size": 42791,
+      "sha256": "ff53b62c318c9624d6857b0f788e5a96e4f397df1efecd38b4837c8745ca70f5"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java",
+      "size": 80346,
+      "sha256": "c13838c101e983a613bae23b266913e264504a3ff9acc744af1d795b9bcb8dac"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlaylistPlaybackOrder.java",
+      "size": 2130,
+      "sha256": "7aaa7b33abd6446252438d647e3c45168bd470c9f0ac36d735f561d7f9cce28e"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/PlaylistRemovalPolicy.java",
+      "size": 1629,
+      "sha256": "b58f6160d9ce22bee75ff4c4865fdeaf8813b1afe6daaeb0f56ab47c09107f3d"
+    },
+    {
+      "path": "tests/ActivePlaylistEditTests.java",
+      "size": 4502,
+      "sha256": "796c4950124f3bbaa1351611b047f42d74b33df498680199f96488f50d552b03"
+    },
+    {
+      "path": "tests/test_bluetooth_double_volume_source.py",
+      "size": 2375,
+      "sha256": "ac51f044c9eae0edad3efb1f3e1837df9a883132db86eb1f8e955db7c70b9631"
+    },
+    {
+      "path": "tests/test_bluetooth_probe_source.py",
+      "size": 1909,
+      "sha256": "a80e302609917df2a19d8519067eac3c8dfb6832c0f87f5c442150b28c972464"
+    },
+    {
+      "path": "tests/test_dev13_integration_source.py",
+      "size": 3224,
+      "sha256": "8f7545e347ee13ab6bb92a37c6f247aa739700f639696504d51869bb20122f13"
+    },
+    {
+      "path": "tests/test_dev14_active_playlist_source.py",
+      "size": 3799,
+      "sha256": "c9b527d070585e3d22e514df2cad7a272e66df1b2a3913f1aeff3e24b1697644"
+    },
+    {
+      "path": "tests/test_dev5_playlist_wiring.py",
+      "size": 2696,
+      "sha256": "8ae282b9eb89ccd865399140c0c9e90e20b01d4127002c4dee6d2db9fd700ef4"
+    },
+    {
+      "path": "tests/test_dev6_playlist_compat.py",
+      "size": 2712,
+      "sha256": "b65e5b604ad785f418df1066ea7ab962239dce77e5340115aaeaed1d3aa6d098"
+    },
+    {
+      "path": "tests/test_dev6_wiring.py",
+      "size": 2266,
+      "sha256": "47886fbf5fd2dac50c18b433f773885e8eb1622ab4b4b3621382930ef97a3180"
+    },
+    {
+      "path": "tests/test_dev7_playlist_compat.py",
+      "size": 2730,
+      "sha256": "a5b29a1dfcd1537db17945f2d9c73df7e10c1b4f33ae42afa1ffe421a6e2395f"
+    },
+    {
+      "path": "tests/test_dev7_sleep_wiring.py",
+      "size": 2266,
+      "sha256": "09fb8ac88de5e14c74f6ad077e8b0b255e6b165434ff25f140bd5b3d61327bb4"
+    },
+    {
+      "path": "tests/test_dev7_wiring.py",
+      "size": 2430,
+      "sha256": "ada5e630b6e47353cb42a8bcb505b7228421602a3141b32242568fe37155bd44"
+    },
+    {
+      "path": "tests/test_dev8_move_wiring.py",
+      "size": 3049,
+      "sha256": "3cd873d37cb2689db4c5f9e84aacd22bd9ff3cee1f616eb4178d18832f9fe84c"
+    },
+    {
+      "path": "tests/test_dev8_now_wiring.py",
+      "size": 2455,
+      "sha256": "f57b97c87a7f84addebd8de95b99ca7bb0a85e52959544e7b00775eb9ce70531"
+    },
+    {
+      "path": "tests/test_dev8_playlist_compat.py",
+      "size": 2730,
+      "sha256": "50df179909cda8cc96782ce66744c78297b6240ebd4547dc2bc5cd24eaf17708"
+    },
+    {
+      "path": "tests/test_dev8_sleep_wiring.py",
+      "size": 2261,
+      "sha256": "99ec1fdd6c00af33743dd01e485f57d654fe7bc722b0f7e4ec422d92f3998123"
+    },
+    {
+      "path": "tests/test_dev9_home_wiring.py",
+      "size": 2229,
+      "sha256": "69857dfac7cd3cc78ea1c9eca7cd5779df8acb2eb3944697a68e58e99db7371a"
+    },
+    {
+      "path": "tests/test_service_lifecycle_source.py",
+      "size": 3154,
+      "sha256": "697618576d869503b67757ec912a11dab59874f0bbe34af44514fc3a699b5b90"
+    },
+    {
+      "path": "tests/test_wqb405_service_wiring.py",
+      "size": 3891,
+      "sha256": "cb88ad8709b600643340771d662730f466486c1620f06a3f42eb2b3460eb3a6a"
+    }
+  ]
+}

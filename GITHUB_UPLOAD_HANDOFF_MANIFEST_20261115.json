@@ -1,0 +1,37 @@
+{
+  "schema": "dev16-github-upload-ready-supplement-v1",
+  "date": "2026-11-15",
+  "source_zip": "DUMBPLAYER_DEV16_COMPLETE_GITHUB_SOURCE_WQ439_20261111.zip",
+  "source_zip_sha256": "a33ca5eaec6f6c28645bb4fc61d6b6d10943c0562d38a7fcdef363d4c238eff6",
+  "app_source_unchanged": true,
+  "additions": [
+    {
+      "path": "00_START_HERE_GITHUB_DEV16_20261115.md",
+      "size": 5432,
+      "sha256": "697eefbc12503319876a277879f37eae6ea1b3722b09633a8c9655341be5d9e5"
+    },
+    {
+      "path": "UPLOAD_TO_EXISTING_GITHUB.cmd",
+      "size": 525,
+      "sha256": "03837738cbe0cc9fa6987175ad063e8cee19c4be549e4d83661933ee39049f01"
+    },
+    {
+      "path": "PUSH_DEV16_TO_GITHUB.ps1",
+      "size": 3097,
+      "sha256": "6f98352c9061fa32c450bedf9ff9c9ceae8dd11fb77e9d073bc4466d1765d4d2"
+    },
+    {
+      "path": "VERIFY_UPLOAD_READY_DEV16.py",
+      "size": 2273,
+      "sha256": "4267ae360537a7c1d7fb5dbe5be2ed9c67caa3e10b4c0af18018db6b1d8012fe"
+    },
+    {
+      "path": ".gitignore",
+      "size": 224,
+      "sha256": "f5e8c9847e5408d602ff67c9d58aaa507f556ea95164e5535613e810e35dddc3"
+    }
+  ],
+  "manual_workflow": ".github/workflows/dev16-unsigned-local-sign.yml",
+  "versionCode": 19,
+  "android_compilation_not_tested": true
+}

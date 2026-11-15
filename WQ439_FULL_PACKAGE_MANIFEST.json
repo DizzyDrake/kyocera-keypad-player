@@ -1,0 +1,54 @@
+{
+  "schema": "dumbplayer-dev16-complete-source-package-v1",
+  "created_utc": "2026-11-11T21:29:49+00:00",
+  "project": "Kyocera Dumbplayer",
+  "candidate": "DEV16 R1 (no Android build)",
+  "task": "WQ-20261111-439",
+  "execution_mode": "manual_owner_invocation",
+  "automation_id": null,
+  "source_reconstruction_order": [
+    {
+      "origin": "DEV13 R2 complete source",
+      "filename": "DUMBPLAYER_DEV13_R2_RELEASE_LINT_FIX_SOURCE_ONLY_20261108.zip",
+      "sha256": "d7571093bacd43fca60ae22f0f250dcfaad6b26600e93da3e572935f2afde3eb",
+      "member_count": 123
+    },
+    {
+      "origin": "DEV13 R3 overlay",
+      "filename": "DUMBPLAYER_DEV13_R3_GITHUB_CHANGED_FILES_ONLY_20261108.zip",
+      "sha256": "43e4e9ad8d41d73e410e23dd99f3bcdda07c7eac257b0ebaa20e299d5d6af6eb",
+      "member_count": 10
+    },
+    {
+      "origin": "DEV14 R1 overlay",
+      "filename": "DUMBPLAYER_DEV14_R1_GITHUB_CHANGED_FILES_ONLY_20261111.zip",
+      "sha256": "f7cceb5a89678d179a00b7d6e4c6c48beb39aba15d83d3a3df8bd99e587bf9be",
+      "member_count": 28
+    },
+    {
+      "origin": "DEV15 R1 overlay",
+      "filename": "DUMBPLAYER_DEV15_R1_GITHUB_CHANGED_FILES_ONLY_20261111.zip",
+      "sha256": "f95c02bd9a903a50d4f0457944dca9473542d39024ac3625db6beec981037547",
+      "member_count": 13
+    },
+    {
+      "origin": "DEV16 R1 overlay",
+      "filename": "DUMBPLAYER_DEV16_R1_GITHUB_CHANGED_FILES_ONLY_20261111.zip",
+      "sha256": "a3de5043e93cce1cafdb6a5e59ad91bb635000709b31c15670164825e7b7798e",
+      "member_count": 16
+    }
+  ],
+  "source_manifest_sha256": "2116ce3a0efc3f87414ab5f9a6915840ac9a9ebc22a643a42cc1b359db19d537",
+  "source_entry_count": 145,
+  "original_reconstructed_tree_file_count": 146,
+  "supplemental_files_sha256": {
+    "SOURCE_MANIFEST.json": "2116ce3a0efc3f87414ab5f9a6915840ac9a9ebc22a643a42cc1b359db19d537",
+    "WQ439_READ_FIRST_FULL_SOURCE.md": "abf7936b023ff698388989debc34f32f58a898298c08f98d6e81d4bb05206906",
+    "WQ439_VERIFY_FULL_SOURCE.py": "5d3ef7af5f615ec7a78e22f665c8faa7fbfcc51e27a80043ae8f2aee9f18f80f"
+  },
+  "source_tree_cumulative_digest_sha256": "feacdb6ba9789ab437ba6d9a597790e050226590872b8c502c0e2b51366943c2",
+  "includes_apk": false,
+  "includes_signing_key": false,
+  "includes_user_media": false,
+  "android_compiled": false
+}
