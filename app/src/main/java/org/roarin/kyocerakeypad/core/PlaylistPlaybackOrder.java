@@ -37,5 +37,9 @@ public final class PlaylistPlaybackOrder {
         if (repeat==Repeat.PLAYLIST && !order.isEmpty())return order.get(next<0?order.size()-1:0);
         return null;
     }
+    /** Remove one entry without shuffling the remaining active session again. */
+    public void removeEntry(String id,String key) {
+        if (playlistId.equals(id)) order.remove(key);
+    }
     public List<String> snapshot() { return new ArrayList<>(order); }
 }

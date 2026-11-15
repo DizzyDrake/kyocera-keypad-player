@@ -56,11 +56,14 @@ public final class KeypadPlayerActivity extends Activity {
             state=playback.state;activeBook=playback.activeBook;
             if(previewPlayer!=null && !playback.previewFocusGranted())stopPreview();
             if("NOW".equals(screen)) {
-                // Preserve the selected D-pad action on periodic playback updates.
-                // If Now Playing rows change, also review selection identity.
+                // Preserve D-pad selection on playback updates.
                 int selected = list.getSelectedItemPosition();
                 showNow();
                 if (selected >= 0 && selected < labels.size()) list.setSelection(selected);
+            } else if("PLAYING_LIST".equals(screen)) {
+                int selected=list.getSelectedItemPosition();
+                renderPlayingPlaylist();
+                if(selected>=0 && selected<labels.size())list.setSelection(selected);
             }
         }
         @Override public void onPlaybackError(String error){
@@ -93,6 +96,7 @@ public final class KeypadPlayerActivity extends Activity {
     };
     private final Handler timer=new Handler();
     private String screen="HOME", selectedPlaylist="", selectedTrack="", libraryFilter="";
+    private String playingPlaylistId=""; // Opened from active playback, not the last browsed list.
     private boolean adding=false, browsingBook=false;
     private TextView heading, footer;
     private MediaPlayer previewPlayer; // Isolated audition: never writes music/book progress.
@@ -200,6 +204,9 @@ public final class KeypadPlayerActivity extends Activity {
             final String id=homeOrder.get(i);
             item((i+1)+". "+homeLabel(id),()->homeAction(id));
         }
+        // Not a tenth reorderable/digit-mapped home entry: ephemeral session link.
+        if(playback!=null && playback.isPrepared())
+            item("▶ Return to Now Playing (keeps playing)",this::showNow);
         render("Dumbplayer · "+displayBuildVersion(),
             (mediaReady?"D-pad selects · Center opens":"Audio permission needed for playback")+
             " · 1–9 opens saved menu positions · * Reorder");
@@ -207,7 +214,10 @@ public final class KeypadPlayerActivity extends Activity {
     /** Provisional * binding, not a selected owner key; no tenth menu entry. */
     private void startHomeReorder(){
         int row=list.getSelectedItemPosition();
-        if(row<0 || row>=homeOrder.size())row=0;
+        if(row>=homeOrder.size()){
+            message("The Now Playing shortcut is not part of saved menu order.");return;
+        }
+        if(row<0)row=0;
         homeDraft=homeOrder.copy();homeMovingId=homeDraft.get(row);
         showHomeReorder();
     }
@@ -267,43 +277,57 @@ public final class KeypadPlayerActivity extends Activity {
         reset("HELP");item("Back to home",this::showHome);
         item("Home menu: reorder and digits 1–9",()->message("On Home, highlight an entry and press * (provisional shortcut) to move it. Up/Down reorders, 1/9 jumps to top/bottom, Center saves, CLR cancels. On Home, digits 1–9 open the entries at their saved positions."));
         item("Playlists: select an item to reorder or remove",()->message("Highlight a playlist track and press * to move it in place. D-pad Up/Down moves it, 1/9 jumps to top/bottom, Center saves and CLR cancels. Track actions also opens Move Mode. Order is never alphabetized."));
-        item("Now playing: seek 10 seconds or bookmark",()->message("Music and audiobook progress are separate. No autoplay on launch."));
+        item("Now playing: playlist and menu while listening",()->message("From Now Playing, open View playing playlist to browse, play or remove entries. Back and Main menu keep playback running. Home has a Return to Now Playing link while audio is prepared. Music/audiobook shuffle settings are independent. If a text interrupts audio, use Play in the media notification or press headset Play while the session is retained."));
         item("About / version",this::showAbout);
         item("Listening settings",this::showSettings);
-        item("Experimental double NEXT = +10s: "+(playback!=null && playback.experimentalDoubleNext()?"ON":"OFF"),()->{
-            if(playback!=null){playback.setExperimentalDoubleNext(!playback.experimentalDoubleNext());showHelp();}
-        });
-        item("Headset shortcut explanation",()->message("Optional experiment only: two NEXT media events within 350 ms seek +10 seconds. Single NEXT is delayed 350 ms while enabled. Your headset TAP is Volume Down; HOLD is Next. Double Volume Down may not reach this app. Leave OFF if uncertain."));
+        if(BuildConfig.DEBUG){
+            item("Debug: experimental double NEXT = +10s: "+
+                (playback!=null && playback.experimentalDoubleNext()?"ON":"OFF"),()->{
+                    if(playback!=null){playback.setExperimentalDoubleNext(!playback.experimentalDoubleNext());showHelp();}
+                });
+            item("Debug: headset shortcut explanation",()->message(
+                "Two NEXT media events within 350 ms seek +10 seconds; diagnostic builds only."));
+        }
         item("Safety / limitations",()->message("EXISTING SANDBOX UPDATE. This build uses the same app-private playlists and progress as the previous WQA365 sandbox when updated in place; it stays separate from the original player. Use disposable test media. No cloud. Do not uninstall either app to resolve signing problems. MediaStore IDs can change; missing/changed files are blocked."));
         render("Help","D-pad Up/Down · Center selects · Playlist RIGHT = Play · Headset trial pending.");
     }
     private void showSettings(){
         reset("SETTINGS");
+        item("Bluetooth Next/Previous · Audiobooks: "+
+            (playback!=null && playback.remoteSeekEnabled(true)?"Seek −15/+30s":"Change tracks"),()->{
+            if(playback!=null){playback.setRemoteSeek(true,!playback.remoteSeekEnabled(true));showSettings();}
+        });
+        item("Bluetooth Next/Previous · Music: "+
+            (playback!=null && playback.remoteSeekEnabled(false)?"Seek −15/+30s":"Change tracks"),()->{
+            if(playback!=null){playback.setRemoteSeek(false,!playback.remoteSeekEnabled(false));showSettings();}
+        });
         item("Audiobook resume rewind: "+(playback==null?"Off":rewindLabel(playback.audiobookRewindSeconds())),()->{
             if(playback!=null){playback.cycleAudiobookRewind();showSettings();}
         });
         item("Rescan local audio",this::scanLibrary);
         item("Review / clear unavailable audio references",this::confirmUnavailableCleanup);
         item("Import PC playlists (ADB transfer)",this::confirmPlaylistImport);
-        item("Experimental double VOLUME seek: "+
+        // Experimental volume-index polling remains in DEBUG only; saturated
+        // Android volume cannot reveal repeated Up/Down presses reliably.
+        if(BuildConfig.DEBUG) item("Debug: Experimental double VOLUME seek: "+
             (playback==null?"Unavailable":(playback.isVolumeDoubleSeekEnabled()?"ON":"OFF")),()->{
             if(playback==null){message("Playback service unavailable");return;}
             playback.setVolumeDoubleSeekEnabled(!playback.isVolumeDoubleSeekEnabled());
             showSettings();
         });
-        item("Double VOLUME seek explanation",()->message(
+        if(BuildConfig.DEBUG) item("Debug: Double VOLUME seek explanation",()->message(
             "Experimental, defaults OFF. While playing, two quick volume decreases seek forward 30s; " +
             "two quick increases seek back 15s. Android's volume still changes. " +
             "Phone volume buttons can trigger it too; it cannot identify the headset. " +
             "An index jump, a button hold, or a press at min/max volume may be missed. " +
             "Turn OFF if normal volume adjustment skips unexpectedly."));
-        item("Record Bluetooth volume/keys (45s)",()->{
+        if(BuildConfig.DEBUG) item("Debug: Record Bluetooth volume/keys (45s)",()->{
             if(playback==null){message("Playback service unavailable");return;}
             if(!playback.isPlaying()){
                 message("Start a track playing first, then start this 45-second diagnostic.");return;
             }
             if(playback.startBluetoothDiagnostic()){
-                message("Bluetooth diagnostic started for 45 seconds. You can close the flip. Press one Volume Up, two quick Up, one Down, two quick Down, then optionally Hold Next. It saves a small bt_probe_*.txt in the existing transfer folder. No controls are remapped.");
+                message("Bluetooth diagnostic started for 45 seconds. It saves a bt_probe_*.txt in the transfer folder. No controls are remapped.");
             }else message("Bluetooth diagnostic already running, or audio service unavailable.");
         });
         item("Sleep timer: set from Music or Audiobook Now Playing",()->message(
@@ -368,8 +392,9 @@ public final class KeypadPlayerActivity extends Activity {
         if(p==null){showPlaylists(browsingBook);return;}
         browsingBook=p.audiobook;reset("DETAIL");
         item("▶ Play playlist",()->playPlaylist(p));
-        item("Shuffle: "+(playback!=null && playback.shuffleEnabled()?"ON":"OFF"),()->{
-            if(playback!=null){playback.setShuffle(!playback.shuffleEnabled());showDetail();}
+        item((p.audiobook?"Audiobook":"Music")+" shuffle: "+
+            (playback!=null && playback.shuffleEnabled(p.audiobook)?"ON":"OFF"),()->{
+            if(playback!=null){playback.setShuffle(p.audiobook,!playback.shuffleEnabled(p.audiobook));showDetail();}
         });
         item("Repeat: "+repeatLabel(),()->{
             if(playback!=null){playback.cycleRepeat();showDetail();}
@@ -419,7 +444,7 @@ public final class KeypadPlayerActivity extends Activity {
         reset("TRACK_ACTIONS");
         item("Play this track",()->playFrom(p,index,false));
         item("Move in playlist (keypad Move Mode)",()->startMoveMode(index));
-        item("Remove from playlist (audio kept)",()->{commitMutation("Remove track",next->next.remove(p.id,index));showDetail();});
+        item("Remove from playlist (audio kept)",()->confirmRemovePlaylistEntry(p.id,key,false));
         item("← Back",this::showDetail);
         render(t==null?"Missing track":t.title,"Select action. Reordering never changes the audio file.");
     }
@@ -1109,7 +1134,14 @@ public final class KeypadPlayerActivity extends Activity {
             case KeyEvent.KEYCODE_4:playback.skip(-1);showNow();break;
             case KeyEvent.KEYCODE_6:playback.skip(1);showNow();break;
             case KeyEvent.KEYCODE_5:
-                if(!playback.isPrepared()){message("No prepared track");break;}
+                if(!playback.isPrepared()){
+                    PlayerState.Progress saved=state.progress(activeBook);
+                    PlayerState.Playlist context=state.playlists.get(saved.playlistId);
+                    if(context!=null && context.entries.contains(saved.trackKey))
+                        playFrom(context,context.entries.indexOf(saved.trackKey),true);
+                    else message("Open a playlist to start listening");
+                    break;
+                }
                 if(!playback.isPlaying())startForegroundService(new Intent(this,KeypadPlaybackService.class));
                 playback.toggle();showNow();break;
             case KeyEvent.KEYCODE_0:if(activeBook)saveQuickBookmark();break;
@@ -1133,7 +1165,7 @@ public final class KeypadPlayerActivity extends Activity {
         String duration=t==null || t.durationMs<=0?"unknown":clock(t.durationMs);
         return (playback.isPlaying()?"Playing ":"Paused ")+clock(playback.position())+" / "+duration+
             " · Sleep "+sleepTimerLabel()+"\n"+
-            "1 -10s · 3 +10s · 4 Prev · 6 Next · 5 Play/Pause"+
+            "1 -10s · 3 +10s · 4 Prev track · 6 Next track · 5 Play/Pause · Back = menu"+
             (activeBook?"\n0 Save mark · 7/9 Jump marks · # Browse marks":"");
     }
     private void showNow(){
@@ -1142,10 +1174,18 @@ public final class KeypadPlayerActivity extends Activity {
         item("[5] Play / Pause",()->nowShortcut(KeyEvent.KEYCODE_5));
         item("[1] ◀ Back 10 seconds",()->seekBy(-10000));
         item("[3] Forward 10 seconds ▶",()->seekBy(10000));
+        item("Bluetooth Next/Previous: "+
+            (playback!=null && playback.remoteSeekEnabled(activeBook)?"Seek −15/+30s":"Change tracks")+
+            " (toggle)",()->{
+                if(playback!=null){
+                    playback.setRemoteSeek(activeBook,!playback.remoteSeekEnabled(activeBook));showNow();
+                }
+            });
         item("[4] Previous playlist track",()->{if(playback!=null){playback.skip(-1);showNow();}});
         item("[6] Next playlist track",()->{if(playback!=null){playback.skip(1);showNow();}});
-        item("Shuffle: "+(playback!=null && playback.shuffleEnabled()?"ON":"OFF"),()->{
-            if(playback!=null){playback.setShuffle(!playback.shuffleEnabled());showNow();}
+        item((activeBook?"Audiobook":"Music")+" shuffle: "+
+            (playback!=null && playback.shuffleEnabled(activeBook)?"ON":"OFF"),()->{
+            if(playback!=null){playback.setShuffle(activeBook,!playback.shuffleEnabled(activeBook));showNow();}
         });
         item("Repeat: "+repeatLabel(),()->{
             if(playback!=null){playback.cycleRepeat();showNow();}
@@ -1157,18 +1197,109 @@ public final class KeypadPlayerActivity extends Activity {
             item("[9] Next bookmark",()->jumpBookmark(1));
             item("[#] Browse / edit bookmarks",this::showBookmarks);
         }
-        item("← Home (pauses)",()->{pauseForNavigation();showHome();});
+        item("View playing playlist (keeps playing)",this::openPlayingPlaylist);
+        item("← Main menu (keeps playing)",this::showHome);
         PlayerState.Playlist pl=state.playlists.get(p.playlistId);
         NowPlayingNavigation.Neighbors adjacent=pl==null?
             NowPlayingNavigation.neighbors(null,null,p.trackKey,false,false):
             NowPlayingNavigation.neighbors(pl.entries,
                 playback==null?null:playback.playbackOrderSnapshot(),p.trackKey,
-                playback!=null && playback.shuffleEnabled(),
+                playback!=null && playback.shuffleEnabled(activeBook),
                 playback!=null && playback.repeatMode()==org.roarin.kyocerakeypad.core.PlaylistPlaybackOrder.Repeat.PLAYLIST);
         String orderHint=adjacent.sessionShuffleOrder?" (shuffle order)":"";
         render("Prev"+orderHint+": "+shortTitle(titleForKey(adjacent.previousKey))+"\n"+
             "▶ "+shortTitle(titleForKey(p.trackKey))+"\n"+
             "Next"+orderHint+": "+shortTitle(titleForKey(adjacent.nextKey)),nowFooter());
+    }
+    private void showNowOrHome(){
+        if(playback!=null && state!=null && !state.progress(activeBook).playlistId.isEmpty())showNow();
+        else showHome();
+    }
+    private void openPlayingPlaylist(){
+        if(state==null || playback==null){message("Playback unavailable");return;}
+        String id=state.progress(activeBook).playlistId;
+        if(id.isEmpty() || !state.playlists.containsKey(id)){
+            message("No active playlist; start a playlist first");return;
+        }
+        playingPlaylistId=id;
+        renderPlayingPlaylist(true);
+    }
+    /** Full saved playlist, displayed in the actual active shuffle order when valid. */
+    private void renderPlayingPlaylist(){renderPlayingPlaylist(false);}
+    private void renderPlayingPlaylist(boolean focusCurrent){
+        PlayerState.Playlist p=state==null?null:state.playlists.get(playingPlaylistId);
+        if(p==null){showNowOrHome();return;}
+        PlayerState.Progress progress=state.progress(p.audiobook);
+        boolean active=playingPlaylistId.equals(progress.playlistId) && activeBook==p.audiobook;
+        List<String> ordered=p.entries;
+        boolean shuffled=false;
+        if(active && playback!=null && playback.shuffleEnabled(p.audiobook)){
+            List<String> session=playback.playbackOrderSnapshot();
+            if(session.size()==p.entries.size() && session.containsAll(p.entries) &&
+                    p.entries.containsAll(session)){ordered=session;shuffled=true;}
+        }
+        reset("PLAYING_LIST");
+        item("← Now Playing controls",this::showNowOrHome);
+        item("← Main menu (keeps playing)",this::showHome);
+        int row=0,currentRow=-1;
+        for(String key:ordered){
+            final String id=key;
+            PlayerState.Track track=state.tracks.get(key);
+            boolean current=active && key.equals(progress.trackKey);
+            if(current)currentRow=labels.size();
+            item((current?"▶ ":"  ")+(++row)+". "+
+                    (track==null?"[missing identity]":track.title),
+                    ()->showPlayingTrackActions(p.id,id));
+        }
+        if(p.entries.isEmpty())item("Playlist empty (audio files preserved)",()->{});
+        render(p.name+(shuffled?" · shuffle order":" · saved order"),
+            "Up/Down browse · Center actions · Back = Now Playing · audio continues");
+        if(focusCurrent && currentRow>=0){final int selected=currentRow;
+            list.post(()->{if("PLAYING_LIST".equals(screen))list.setSelection(selected);});}
+    }
+    private void showPlayingTrackActions(String playlistId,String trackKey){
+        PlayerState.Playlist p=state==null?null:state.playlists.get(playlistId);
+        if(p==null || !p.entries.contains(trackKey)){
+            message("Track changed; reopen playing playlist");renderPlayingPlaylist();return;
+        }
+        PlayerState.Track track=state.tracks.get(trackKey);
+        reset("PLAYING_ITEM");
+        item("▶ Play this track now",()->{
+            PlayerState.Playlist live=state.playlists.get(playlistId);
+            int index=live==null?-1:live.entries.indexOf(trackKey);
+            if(index<0){message("Track moved or removed");renderPlayingPlaylist();return;}
+            playFrom(live,index,false);
+        });
+        item("Remove from playlist (keep audio file)",
+            ()->confirmRemovePlaylistEntry(playlistId,trackKey,true));
+        item("← Full playing playlist",this::renderPlayingPlaylist);
+        item("← Main menu (keeps playing)",this::showHome);
+        render(track==null?"Missing identity":track.title,
+            "Center selects · removing changes the playlist, never the audio file");
+    }
+    private void confirmRemovePlaylistEntry(String playlistId,String key,boolean fromPlayingList){
+        PlayerState.Playlist p=state==null?null:state.playlists.get(playlistId);
+        if(p==null || !p.entries.contains(key)){
+            message("Playlist changed; reopen and try again");return;
+        }
+        boolean current=playback!=null && activeBook==p.audiobook &&
+            playlistId.equals(state.progress(p.audiobook).playlistId) &&
+            key.equals(state.progress(p.audiobook).trackKey);
+        String explanation="Remove this entry from the playlist? The audio file remains untouched.";
+        if(current)explanation+=" If playing, Dumbplayer will advance to the next remaining track when available; otherwise playback stops.";
+        new AlertDialog.Builder(this).setTitle(current?"Remove currently playing track?":"Remove playlist entry?")
+            .setMessage(explanation)
+            .setNegativeButton("Cancel",(dialog,which)->{})
+            .setPositiveButton("Remove",(dialog,which)->{
+                PlayerState.Playlist live=state==null?null:state.playlists.get(playlistId);
+                int index=live==null?-1:live.entries.indexOf(key);
+                if(index<0 || playback==null){message("Playlist changed or service unavailable");return;}
+                if(!playback.removePlaylistTrack(playlistId,index,key)){
+                    message("Removal was not saved. Nothing was deleted.");return;
+                }
+                state=playback.state;
+                if(fromPlayingList)renderPlayingPlaylist();else showDetail();
+            }).show();
     }
     private void saveQuickBookmark(){
         if(!activeBook || playback==null || !playback.isPrepared()){
@@ -1237,7 +1368,6 @@ public final class KeypadPlayerActivity extends Activity {
         if(playback!=null && playback.persist())return true;
         message("Could not save player state; preserve app data.");return false;
     }
-    private void pauseForNavigation(){if(playback!=null)playback.pause();}
     private static AudioAttributes mediaAttributes(boolean book){
         return new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(book?AudioAttributes.CONTENT_TYPE_SPEECH:AudioAttributes.CONTENT_TYPE_MUSIC).build();
@@ -1264,7 +1394,11 @@ public final class KeypadPlayerActivity extends Activity {
             case "LIBRARY_TRACK":returnToLibrary();break;
             case "LIBRARY_ADD":showLibraryTrackActions(libraryTrackKey);break;
             case "PREVIEW":returnFromPreview();break;
-            case "NOW":pauseForNavigation();showHome();break;
+            case "NOW":showHome();break; // navigate without stopping audio
+            case "PLAYING_LIST":case "PLAYING_ITEM":
+                if("PLAYING_ITEM".equals(screen))renderPlayingPlaylist();
+                else showNowOrHome();
+                break;
             case "DETAIL":showPlaylists(browsingBook);break;
             case "MOVE":cancelMoveMode();break;
             case "TRACK_ACTIONS":case "LIBRARY":if(adding){adding=false;showDetail();}else if("TRACK_ACTIONS".equals(screen))showDetail();else showHome();break;

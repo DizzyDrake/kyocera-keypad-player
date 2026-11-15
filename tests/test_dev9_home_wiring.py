@@ -22,7 +22,7 @@ checks={
  'NOW preserved': 'if("NOW".equals(screen)' in a and 'nowShortcut(key)' in a,
  'playlist move preserved': 'if("MOVE".equals(screen)' in a and 'moveByKey(key)' in a,
  'app identity unchanged': "applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
- 'version code bumped': 'versionCode 16' in g,
+ 'version code bumped': 'versionCode 17' in g,
  'Dumbplayer display label': 'android:label="Dumbplayer"' in m,
  'legacy readme preserved': (r/'README_DEV8_HISTORICAL.md').exists(),
  'legacy manifest preserved': (r/'SOURCE_MANIFEST_DEV8_HISTORICAL.json').exists(),

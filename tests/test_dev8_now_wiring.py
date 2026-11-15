@@ -18,16 +18,16 @@ checks={
  'service snapshot non mutating':'List<String> playbackOrderSnapshot(){return playbackOrder.snapshot();}' in s,
  'adjacent title':'"Prev"+orderHint' in a and '"Next"+orderHint' in a,
  'duration':'clock(t.durationMs)' in a and '"unknown"' in a,
- 'footer key legend':'"1 -10s · 3 +10s · 4 Prev · 6 Next · 5 Play/Pause"' in a,
+ 'footer key legend':'"1 -10s · 3 +10s · 4 Prev · 6 Next · 5 Play/Pause · Back = menu"' in a,
  'bookmark no rename dialog on quick save':'next->next.addBookmark(key,clock(at),at)' in a,
  'original bookmark edit preserved':'item("Rename bookmark"' in a and 'item("Delete bookmark"' in a,
  'parent sleep timer preserved':'sleepDeadlineElapsed=now+duration;' in s,
  'parent rewind preserved':'(resume && p.audiobook)' in s,
- 'parent shuffle preserved':'void setShuffle(boolean enabled)' in s,
+ 'parent shuffle preserved':'void setShuffle(boolean book,boolean enabled)' in s,
  'parent repeat preserved':'void cycleRepeat()' in s,
  'parent service background':'startForegroundService(new Intent(this,KeypadPlaybackService.class))' in a,
  'same sandbox app ID':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
- 'version code bumped':'versionCode 16' in g and "versionName '0.2.7-dev13-stale-import-bt-direction'" in g,
+ 'version code bumped':'versionCode 17' in g and "versionName '0.2.8-dev14-playlist-navigation'" in g,
 }
 for name,passed in checks.items():print(('PASS' if passed else 'FAIL'),name)
 assert all(checks.values())

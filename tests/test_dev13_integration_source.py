@@ -11,14 +11,14 @@ m=(p/'app/src/main/AndroidManifest.xml').read_text()
 workflow=(p/'.github/workflows/dev13-update-signed.yml').read_text()
 checks={
   'package unchanged':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
-  'new version code': 'versionCode 16' in g,
-  'new version name': "versionName '0.2.7-dev13-stale-import-bt-direction'" in g,
+  'new version code': 'versionCode 19' in g,
+  'new version name': "versionName '0.3.0-dev16-remote-skip'" in g,
   'header is build-derived': 'render("Dumbplayer · "+displayBuildVersion()' in a and 'BuildConfig.VERSION_NAME' in a,
   'old hardcoded header removed':'DEV10 import trial' not in a,
   'up rewinds 15': 'return step>0?Action.BACK_15S:Action.FORWARD_30S' in core and 'seek(-15000L)' in s,
   'down advances 30': 'return step>0?Action.BACK_15S:Action.FORWARD_30S' in core and 'seek(30000L)' in s,
   'Bluetooth help corrected': 'two quick volume decreases seek forward 30s;' in a and 'two quick increases seek back 15s' in a,
-  'volume mode opt-in preserved':'settings.getBoolean("double_volume_seek",false)' in s,
+  'volume disabled in ordinary build':'volumeDoubleSeekEnabled=BuildConfig.DEBUG && settings.getBoolean("double_volume_seek",false)' in s,
   'no volume hijacking':'setStreamVolume(' not in s and 'adjustStreamVolume(' not in s,
   'no remote routing':'setPlaybackToRemote(' not in s,
   'stale IDs advisory':'Snapshot ID differs; stale import explicitly allowed.' in a,

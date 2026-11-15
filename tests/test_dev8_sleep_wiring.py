@@ -20,10 +20,10 @@ checks={
  'rewind canonical progress preserved until started':'state.select(activeBook,p.id,key,start)' in s and 'commitAudibleResumePosition(at)' in s,
  'rewind setting persisted':'putInt("audiobook_resume_rewind_seconds",audiobookRewindSeconds)' in s,
  'existing play playlist preserved':'boolean playPlaylist(String playlistId)' in s,
- 'existing shuffle preserved':'void setShuffle(boolean enabled)' in s,
+ 'existing shuffle preserved':'void setShuffle(boolean book,boolean enabled)' in s,
  'existing headset option preserved':'void setExperimentalDoubleNext(boolean enabled)' in s,
  'sandbox app ID preserved':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in b,
- 'version bumped':'versionCode 16' in b and "versionName '0.2.7-dev13-stale-import-bt-direction'" in b,
+ 'version bumped':'versionCode 17' in b and "versionName '0.2.8-dev14-playlist-navigation'" in b,
 }
 for label,ok in checks.items():
  print(('PASS' if ok else 'FAIL')+' '+label)

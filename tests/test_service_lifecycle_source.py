@@ -36,7 +36,8 @@ class ServiceLifecycleSource(unittest.TestCase):
  def test_sleep_and_explicit_home_are_distinct(self):
   b=a.split('@Override public void onPause(){',1)[1].split('@Override public void onDestroy(){',1)[0]
   self.assertNotIn('pauseForNavigation()',b)
-  self.assertIn('pauseForNavigation();showHome()',a)
+  self.assertIn('case "NOW":showHome();break;',a)
+  self.assertIn('Main menu (keeps playing)',a)
   self.assertIn('android.permission.WAKE_LOCK',m)
  def test_now_playing_refresh_preserves_selection(self):
   b=a.split('@Override public void onPlaybackChanged(){',1)[1].split('@Override public void onPlaybackError',1)[0]

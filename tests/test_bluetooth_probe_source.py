@@ -10,7 +10,7 @@ g=(root/'app/build.gradle').read_text()
 m=(root/'app/src/main/AndroidManifest.xml').read_text()
 checks={
     'same package identity':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,
-    'new version code 16':'versionCode 16' in g,
+    'new version code 18':'versionCode 19' in g,
     'unchanged Bluetooth media transport timing':'new MediaTransportSequencer(350)' in s,
     'manual opt-in 45s window':'Record Bluetooth volume/keys (45s)' in a and 'BT_PROBE_LENGTH_MS=45000L' in s,
     'no opt-in when paused':'if(!playback.isPlaying())' in a,

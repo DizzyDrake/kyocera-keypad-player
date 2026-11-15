@@ -23,7 +23,7 @@ checks={
  'original bookmark edit preserved':'item("Rename bookmark"' in a and 'item("Delete bookmark"' in a,
  'parent sleep timer preserved':'sleepDeadlineElapsed=now+duration;' in s,
  'parent rewind preserved':'(resume && p.audiobook)' in s,
- 'parent shuffle preserved':'void setShuffle(boolean enabled)' in s,
+ 'parent shuffle preserved':'void setShuffle(boolean book,boolean enabled)' in s,
  'parent repeat preserved':'void cycleRepeat()' in s,
  'parent service background':'startForegroundService(new Intent(this,KeypadPlaybackService.class))' in a,
  'same sandbox app ID':"applicationId 'org.roarin.kyocerakeypad.sandboxwqa365'" in g,

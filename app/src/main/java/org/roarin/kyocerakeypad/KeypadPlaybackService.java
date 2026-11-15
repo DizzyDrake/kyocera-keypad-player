@@ -36,11 +36,14 @@ public final class KeypadPlaybackService extends Service {
     };
     private final PlaylistPlaybackOrder playbackOrder = new PlaylistPlaybackOrder();
     private final Random shuffleRandom = new Random();
-    private boolean shuffleEnabled, experimentalDoubleNext;
+    private boolean shuffleMusic, shuffleBook, experimentalDoubleNext;
+    // Independent remote media Next/Previous seek preferences: audiobook ON, music OFF.
+    private boolean remoteSeekBook=true, remoteSeekMusic=false;
     private PlaylistPlaybackOrder.Repeat repeatMode = PlaylistPlaybackOrder.Repeat.OFF;
     final IBinder binder = new LocalBinder();
     final Handler handler = new Handler(Looper.getMainLooper());
-    // Owner-requested experimental double-volume seek. Defaults OFF.
+    // Retired in ordinary builds: volume-index polling cannot detect presses at max/min.
+    // Diagnostic builds retain it for controlled experiments only.
     // Observes system volume indices so the existing Android volume routing
     // and MediaSession media-button handler remain unchanged. This can also
     // react to local/device volume changes; it cannot identify the headset.
@@ -64,6 +67,8 @@ public final class KeypadPlaybackService extends Service {
     }};
     boolean isVolumeDoubleSeekEnabled(){return volumeDoubleSeekEnabled;}
     void setVolumeDoubleSeekEnabled(boolean enabled){
+        // No amount of timing adjustment makes saturated volume indexes observable.
+        if(!BuildConfig.DEBUG) enabled=false;
         volumeDoubleSeekEnabled=enabled;
         handler.removeCallbacks(volumeDoubleSeekPoll);
         volumeDoubleTap.clear();
@@ -196,12 +201,18 @@ public final class KeypadPlaybackService extends Service {
             } catch (Exception e) { recoveryMode=true; }
         }
         android.content.SharedPreferences settings=getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE);
-        shuffleEnabled=settings.getBoolean("shuffle",false);
+        // Legacy single preference is inherited by each lane on first upgrade.
+        // Later toggles are independent and never rewrite the other lane.
+        boolean legacyShuffle=settings.getBoolean("shuffle",false);
+        shuffleMusic=settings.getBoolean("shuffle_music",legacyShuffle);
+        shuffleBook=settings.getBoolean("shuffle_book",legacyShuffle);
+        remoteSeekBook=settings.getBoolean("remote_seek_book",true);
+        remoteSeekMusic=settings.getBoolean("remote_seek_music",false);
         String savedRepeat=settings.getString("repeat","OFF");
         try { repeatMode=PlaylistPlaybackOrder.Repeat.valueOf(savedRepeat); }
         catch (IllegalArgumentException ignored) { repeatMode=PlaylistPlaybackOrder.Repeat.OFF; }
-        experimentalDoubleNext=settings.getBoolean("double_next_seek",false);
-        volumeDoubleSeekEnabled=settings.getBoolean("double_volume_seek",false);
+        experimentalDoubleNext=BuildConfig.DEBUG && settings.getBoolean("double_next_seek",false);
+        volumeDoubleSeekEnabled=BuildConfig.DEBUG && settings.getBoolean("double_volume_seek",false);
         audiobookRewindSeconds=settings.getInt("audiobook_resume_rewind_seconds",0);
         if(audiobookRewindSeconds!=0 && audiobookRewindSeconds!=5 && audiobookRewindSeconds!=10)
             audiobookRewindSeconds=0;
@@ -216,8 +227,8 @@ public final class KeypadPlaybackService extends Service {
             @Override public void onPlay(){ btProbeNote("MediaSession.onPlay"); explicitPlay(); }
             @Override public void onPause(){ btProbeNote("MediaSession.onPause"); pause(); }
             @Override public void onStop(){ btProbeNote("MediaSession.onStop"); stopPlayer(); }
-            @Override public void onSkipToNext(){ btProbeNote("MediaSession.onSkipToNext"); skip(1); }
-            @Override public void onSkipToPrevious(){ btProbeNote("MediaSession.onSkipToPrevious"); skip(-1); }
+            @Override public void onSkipToNext(){ btProbeNote("MediaSession.onSkipToNext"); remoteNextPrevious(true); }
+            @Override public void onSkipToPrevious(){ btProbeNote("MediaSession.onSkipToPrevious"); remoteNextPrevious(false); }
             @Override public void onSeekTo(long pos){ btProbeNote("MediaSession.onSeekTo"); seekAbsolute(pos); }
             @Override public boolean onMediaButtonEvent(Intent eventIntent){
                 KeyEvent key=eventIntent==null?null:eventIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
@@ -250,11 +261,12 @@ public final class KeypadPlaybackService extends Service {
             showForeground();
             String action=intent==null?null:intent.getAction();
             if(ACTION_TOGGLE.equals(action))toggle();
-            else if(ACTION_NEXT.equals(action))skip(1);
-            else if(ACTION_PREVIOUS.equals(action))skip(-1);
+            else if(ACTION_NEXT.equals(action))remoteNextPrevious(true);
+            else if(ACTION_PREVIOUS.equals(action))remoteNextPrevious(false);
             // A pending start may arrive after Play failed or was paused. Honor
             // the foreground deadline first, then retire the idle start.
-            if (player == null || !playbackGate.canStart()) retireForeground();
+            if (player == null) retireForeground();
+            else if (isPrepared() && !isPlaying()) keepPausedControls();
         } else { showForegroundForRecovery(); stopSelf(startId); }
         return START_NOT_STICKY; // Never automatically resume after process death.
     }
@@ -275,12 +287,34 @@ public final class KeypadPlaybackService extends Service {
             case PLAY: explicitPlay();break;
             case PAUSE: pause();break;
             case TOGGLE: toggle();break;
-            case NEXT: skip(1);break;
-            case PREVIOUS: skip(-1);break;
+            case NEXT: remoteNextPrevious(true);break;
+            case PREVIOUS: remoteNextPrevious(false);break;
             case STOP: stopPlayer();break;
             case SEEK_FORWARD_10S: seek(10000);break;
             case SEEK_BACK_10S: seek(-10000);break;
         }
+    }
+    /**
+     * Remote headset/media-session/notification NEXT/PREVIOUS (not the local
+     * keypad [4]/[6] controls). Only current active lane determines behavior.
+     * Absent a prepared track, seek mode is a no-op rather than silently
+     * changing to another audiobook. Normal track commands still call skip().
+     */
+    private void remoteNextPrevious(boolean next){
+        RemoteSkipPolicy.Action decision=RemoteSkipPolicy.decide(activeBook,remoteSeekMusic,remoteSeekBook,next);
+        switch(decision){
+            case SEEK_FORWARD_30S: seek(30000L);break;
+            case SEEK_BACK_15S: seek(-15000L);break;
+            case NEXT_TRACK: skip(1);break;
+            case PREVIOUS_TRACK: skip(-1);break;
+        }
+    }
+    boolean remoteSeekEnabled(boolean book){return book?remoteSeekBook:remoteSeekMusic;}
+    void setRemoteSeek(boolean book,boolean enabled){
+        if(book)remoteSeekBook=enabled;else remoteSeekMusic=enabled;
+        getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit()
+            .putBoolean(book?"remote_seek_book":"remote_seek_music",enabled).apply();
+        updateMediaSession();notifyChanged();
     }
     private final Runnable saveTick=new Runnable(){@Override public void run(){
         if(player!=null && prepared){
@@ -330,14 +364,14 @@ public final class KeypadPlaybackService extends Service {
             stopPlayer();error("Playback could not pause; player released");return;
         }
         savePosition();if (!persist()) error("Position could not be saved");
-        abandonFocus();retireForeground();updateMediaSession();notifyChanged();
+        abandonFocus();keepPausedControls();updateMediaSession();notifyChanged();
     }
     void explicitPlay(){
         if(!isPrepared())return; // Never start from stale saved progress alone.
         if(requestFocus(activeBook)){
             playbackGate.requestPlay();
             try {
-                if (!canStart()) { retireForeground(); return; }
+                if (!canStart()) { keepPausedControls(); return; }
                 player.start();
                 startForegroundService(new Intent(this, KeypadPlaybackService.class));
                 showForeground();
@@ -346,13 +380,14 @@ public final class KeypadPlaybackService extends Service {
                 // Release it so a reported failure cannot leave unowned audio running.
                 stopPlayer();error("Playback could not resume");
             }
-        }else error("Audio unavailable during interruption; remains paused");
+        }else {error("Audio unavailable during interruption; remains paused");keepPausedControls();}
         updateMediaSession();notifyChanged();
     }
     void toggle(){if(isPlaying())pause();else explicitPlay();}
     // Snapshot for display only. Playback order is service-owned and not re-shuffled by UI renders.
     List<String> playbackOrderSnapshot(){return playbackOrder.snapshot();}
-    boolean shuffleEnabled(){return shuffleEnabled;}
+    boolean shuffleEnabled(){return shuffleEnabled(activeBook);}
+    boolean shuffleEnabled(boolean book){return book?shuffleBook:shuffleMusic;}
     PlaylistPlaybackOrder.Repeat repeatMode(){return repeatMode;}
     boolean experimentalDoubleNext(){return experimentalDoubleNext;}
     int audiobookRewindSeconds(){return audiobookRewindSeconds;}
@@ -384,13 +419,17 @@ public final class KeypadPlaybackService extends Service {
         handler.removeCallbacks(sleepTimerExpiry);
         sleepDeadlineElapsed=-1L;sleepPlaylistId="";
     }
-    void setShuffle(boolean enabled){
-        shuffleEnabled=enabled;
-        getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit().putBoolean("shuffle",enabled).apply();
-        PlayerState.Progress progress=state.progress(activeBook);
-        PlayerState.Playlist p=state.playlists.get(progress.playlistId);
-        if (p!=null && p.entries.contains(progress.trackKey))
-            playbackOrder.start(p.id,p.entries,progress.trackKey,shuffleEnabled,shuffleRandom);
+    void setShuffle(boolean book,boolean enabled){
+        if(book)shuffleBook=enabled;else shuffleMusic=enabled;
+        getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit()
+            .putBoolean(book?"shuffle_book":"shuffle_music",enabled).apply();
+        // Do not reshape a different active listening lane.
+        if(activeBook==book){
+            PlayerState.Progress progress=state.progress(activeBook);
+            PlayerState.Playlist p=state.playlists.get(progress.playlistId);
+            if(p!=null && p.entries.contains(progress.trackKey))
+                playbackOrder.start(p.id,p.entries,progress.trackKey,enabled,shuffleRandom);
+        }
         notifyChanged();
     }
     /**
@@ -402,7 +441,7 @@ public final class KeypadPlaybackService extends Service {
     void onPlaylistOrderSaved(String playlistId){
         PlayerState.Progress progress=state.progress(activeBook);
         PlayerState.Playlist p=state.playlists.get(playlistId);
-        if(!shuffleEnabled && p!=null && playlistId.equals(progress.playlistId) &&
+        if(!shuffleEnabled(activeBook) && p!=null && playlistId.equals(progress.playlistId) &&
                 p.entries.contains(progress.trackKey))
             playbackOrder.start(p.id,p.entries,progress.trackKey,false,shuffleRandom);
         notifyChanged();
@@ -425,17 +464,77 @@ public final class KeypadPlaybackService extends Service {
         getSharedPreferences("playlist_playback_options_v1",MODE_PRIVATE).edit()
             .putBoolean("double_next_seek",enabled).apply();
     }
+    /**
+     * Explicit user-requested playlist removal. Writes a cloned state first;
+     * neither the audio file nor a live playback session is changed if saving fails.
+     * The active session order is shortened without re-shuffling survivors.
+     */
+    boolean removePlaylistTrack(String playlistId,int index,String expectedKey){
+        if(recoveryMode){error("Cannot edit playlist while state needs recovery");return false;}
+        PlayerState.Playlist playlist=state.playlists.get(playlistId);
+        if(playlist==null || index<0 || index>=playlist.entries.size() ||
+                !playlist.entries.get(index).equals(expectedKey)){
+            error("Playlist changed; reopen before removing a track");return false;
+        }
+        PlayerState.Progress progress=state.progress(playlist.audiobook);
+        boolean wasSelected=playlistId.equals(progress.playlistId) &&
+                expectedKey.equals(progress.trackKey);
+        boolean activeCurrent=wasSelected && activeBook==playlist.audiobook && player!=null;
+        boolean continuePlaying=activeCurrent && (isPlaying() || !prepared);
+        final String nextKey=wasSelected?(activeCurrent?
+                PlaylistRemovalPolicy.successor(playlist.entries,playbackOrder.snapshot(),
+                    expectedKey,repeatMode==PlaylistPlaybackOrder.Repeat.PLAYLIST):
+                PlaylistRemovalPolicy.savedSuccessor(playlist.entries,expectedKey)):null;
+        try{
+            PlayerState updated=StateMutation.prepareAndSave(state,draft->{
+                // Validate identity inside the copied transaction, not only above.
+                PlayerState.Playlist copy=draft.getPlaylist(playlistId);
+                if(index>=copy.entries.size() || !expectedKey.equals(copy.entries.get(index)))
+                    throw new IllegalArgumentException("Playlist entry changed");
+                draft.remove(playlistId,index);
+                if(wasSelected){
+                    if(nextKey==null){
+                        PlayerState.Progress saved=draft.progress(playlist.audiobook);
+                        saved.playlistId="";saved.trackKey="";saved.positionMs=0L;
+                    }else draft.select(playlist.audiobook,playlistId,nextKey,0L);
+                }
+            },this::writeStateBytes);
+            if(updated==state){error("Removal was not saved; audio retained");return false;}
+            state=updated;
+            playbackOrder.removeEntry(playlistId,expectedKey);
+            if(activeCurrent){
+                releaseAfterCommittedRemoval();
+                if(continuePlaying && nextKey!=null){
+                    int nextIndex=updated.getPlaylist(playlistId).entries.indexOf(nextKey);
+                    if(nextIndex>=0 && !playFromInternal(playlistId,nextIndex,false))
+                        error("Track removed, but following track could not open");
+                }
+            }
+            notifyChanged();return true;
+        }catch(Exception failure){
+            error("Removal not saved: "+failure.getClass().getSimpleName());return false;
+        }
+    }
+    /** Release obsolete MediaPlayer without saving its position into the NEW track. */
+    private void releaseAfterCommittedRemoval(){
+        playbackGate.requestPause();
+        abandonFocus();
+        MediaPlayer old=player;player=null;prepared=false;
+        if(old!=null){try{old.reset();}catch(Exception ignored){}
+            finally{try{old.release();}catch(Exception ignored){}}}
+        retireForeground();updateMediaSession();
+    }
     boolean playPlaylist(String playlistId){
         PlayerState.Playlist p=state.playlists.get(playlistId);
         if(p==null || p.entries.isEmpty()){error("Playlist has no tracks");return false;}
-        String first=p.entries.get(shuffleEnabled?shuffleRandom.nextInt(p.entries.size()):0);
-        playbackOrder.start(p.id,p.entries,first,shuffleEnabled,shuffleRandom);
+        String first=p.entries.get(shuffleEnabled(p.audiobook)?shuffleRandom.nextInt(p.entries.size()):0);
+        playbackOrder.start(p.id,p.entries,first,shuffleEnabled(p.audiobook),shuffleRandom);
         return playFromInternal(p.id,p.entries.indexOf(first),false);
     }
     boolean playFrom(String playlistId,int index,boolean resume){
         PlayerState.Playlist p=state.playlists.get(playlistId);
         if(p==null || index<0 || index>=p.entries.size()){error("Playlist entry missing");return false;}
-        playbackOrder.start(p.id,p.entries,p.entries.get(index),shuffleEnabled,shuffleRandom);
+        playbackOrder.start(p.id,p.entries,p.entries.get(index),shuffleEnabled(p.audiobook),shuffleRandom);
         return playFromInternal(playlistId,index,resume);
     }
     private boolean playFromInternal(String playlistId,int index,boolean resume){
@@ -512,7 +611,7 @@ public final class KeypadPlaybackService extends Service {
                     stopPlayer();return;
                 }
                 if(!playbackOrder.matches(p.id,live.entries,key))
-                    playbackOrder.start(p.id,live.entries,key,shuffleEnabled,shuffleRandom);
+                    playbackOrder.start(p.id,live.entries,key,shuffleEnabled(p.audiobook),shuffleRandom);
                 String nextKey=playbackOrder.next(key,1,repeatMode,true);
                 if(nextKey==null){stopPlayer();return;}
                 int nextIndex=live.entries.indexOf(nextKey);
@@ -566,7 +665,7 @@ public final class KeypadPlaybackService extends Service {
         PlayerState.Playlist pl=state.playlists.get(p.playlistId);
         if(pl==null)return;
         if(!playbackOrder.matches(pl.id,pl.entries,p.trackKey))
-            playbackOrder.start(pl.id,pl.entries,p.trackKey,shuffleEnabled,shuffleRandom);
+            playbackOrder.start(pl.id,pl.entries,p.trackKey,shuffleEnabled(activeBook),shuffleRandom);
         String nextKey=playbackOrder.next(p.trackKey,delta,repeatMode,false);
         if(nextKey==null)return;
         int next=pl.entries.indexOf(nextKey);
@@ -581,7 +680,7 @@ public final class KeypadPlaybackService extends Service {
         }
         abandonFocus();final long epoch=++focusEpoch;
         focusRequest=new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(attrs(book)).setWillPauseWhenDucked(true)
+            .setAudioAttributes(attrs(book)).setWillPauseWhenDucked(book)
             .setOnAudioFocusChangeListener(change->{if(epoch==focusEpoch)focusChanged(change);},handler).build();
         boolean granted=audioManager.requestAudioFocus(focusRequest)==AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
         focusGate.onExplicitRequest(granted);if(!granted)abandonFocus();return granted;
@@ -596,7 +695,9 @@ public final class KeypadPlaybackService extends Service {
                 stopPlayer();error("Interrupted playback could not pause; player released");return;
             }
             savePosition();if (!persist()) error("Position could not be saved");
-            abandonFocus();retireForeground();updateMediaSession();notifyChanged();
+            // Keep the prepared track and MediaSession alive for an explicit
+            // headset/notification Play. Never restart just because focus returns.
+            abandonFocus();keepPausedControls();updateMediaSession();notifyChanged();
             // Focus GAIN deliberately cannot clear the explicit-interruption latch.
         }
     }
@@ -613,8 +714,12 @@ public final class KeypadPlaybackService extends Service {
         int status=isPlaying()?PlaybackState.STATE_PLAYING:(isPrepared()?PlaybackState.STATE_PAUSED:PlaybackState.STATE_STOPPED);
         mediaSession.setPlaybackState(new PlaybackState.Builder().setActions(actions)
             .setState(status,position(),isPlaying()?1f:0f,SystemClock.elapsedRealtime()).build());
-        if(foreground){NotificationManager nm=(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-            nm.notify(NOTIFICATION_ID,notification());}
+        // A paused, prepared track still has a visible Play control, even with
+        // the Activity closed and no foreground-service notification ownership.
+        if(foreground || isPrepared()){
+            NotificationManager nm=(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+            nm.notify(NOTIFICATION_ID,notification());
+        }
     }
     private Notification notification(){
         Intent launch=new Intent(this,KeypadPlayerActivity.class);
@@ -622,11 +727,11 @@ public final class KeypadPlaybackService extends Service {
         PlayerState.Progress p=state.progress(activeBook);
         PlayerState.Track t=state.tracks.get(p.trackKey);
         String title=t==null?"Keypad Player":t.title;
-        Notification.Action previous=new Notification.Action.Builder(android.R.drawable.ic_media_previous,"Previous",
+        Notification.Action previous=new Notification.Action.Builder(android.R.drawable.ic_media_previous,remoteSeekEnabled(activeBook)?"Back 15s":"Previous track",
             notificationAction(ACTION_PREVIOUS,1)).build();
         Notification.Action toggle=new Notification.Action.Builder(isPlaying()?android.R.drawable.ic_media_pause:android.R.drawable.ic_media_play,
             isPlaying()?"Pause":"Play",notificationAction(ACTION_TOGGLE,2)).build();
-        Notification.Action next=new Notification.Action.Builder(android.R.drawable.ic_media_next,"Next",
+        Notification.Action next=new Notification.Action.Builder(android.R.drawable.ic_media_next,remoteSeekEnabled(activeBook)?"Forward 30s":"Next track",
             notificationAction(ACTION_NEXT,3)).build();
         return new Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle(title).setContentText(isPlaying()?"Playing":"Paused · select Play to resume")
@@ -640,10 +745,20 @@ public final class KeypadPlaybackService extends Service {
         return PendingIntent.getService(this,requestCode,intent,
             PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
-    // A bound Activity retains a paused player while visible. If unbound, the
-    // stopped service can be destroyed; a later resume uses durable state.
+    // After a pause (manual or focus interruption), keep a user-visible,
+    // non-ongoing media notification with Play and a live MediaSession.
+    // Android may still reclaim a nonforeground service; no auto-resume follows.
+    private void keepPausedControls(){
+        if(recoveryMode || !isPrepared()){retireForeground();return;}
+        if(foreground){stopForeground(false);foreground=false;}
+        NotificationManager nm=(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+        nm.notify(NOTIFICATION_ID,notification());
+    }
+    // An explicit Stop or a released/unprepared player removes controls and
+    // permits service teardown. A normal pause MUST NOT call this helper.
     private void retireForeground(){
         if (foreground) { stopForeground(true); foreground=false; }
+        ((NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE)).cancel(NOTIFICATION_ID);
         stopSelf();
     }
     private void showForegroundForRecovery(){
@@ -660,6 +775,7 @@ public final class KeypadPlaybackService extends Service {
         volumeDoubleSeekEnabled=false;handler.removeCallbacks(volumeDoubleSeekPoll);volumeDoubleTap.clear();
         finishBluetoothDiagnostic("Service closed before 45s");clearSleepTimer();handler.removeCallbacks(saveTick);handler.removeCallbacks(mediaFlush);transport.close();stopPlayer();
         if(mediaSession!=null){mediaSession.setActive(false);mediaSession.release();mediaSession=null;}
+        ((NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE)).cancel(NOTIFICATION_ID);
         super.onDestroy();
     }
 }

@@ -27,12 +27,12 @@ checks={
  'draft snapshot isolated':'new ArrayList<>(entries)' in d,
  'saved order changes only entries':'p.entries.clear();' in d and 'p.entries.addAll(order);' in d,
  'service refresh after save':'playback.onPlaylistOrderSaved(draft.playlistId())' in a,
- 'nonshuffle service refresh':'if(!shuffleEnabled && p!=null' in s and 'playbackOrder.start(p.id,p.entries,progress.trackKey,false,shuffleRandom)' in s,
+ 'nonshuffle service refresh':'if(!shuffleEnabled(activeBook) && p!=null' in s and 'playbackOrder.start(p.id,p.entries,progress.trackKey,false,shuffleRandom)' in s,
  'no autoplay on save':'void onPlaylistOrderSaved(String playlistId)' in s and 'player.start()' not in s.split('void onPlaylistOrderSaved(String playlistId)',1)[1].split('void cycleRepeat()',1)[0],
  'move mode back':'case "MOVE":cancelMoveMode();break;' in a,
  'android valid headset hook constant':'KeyEvent.KEYCODE_HEADSETHOOK' in s and 'KEYCODE_HEADSETPHOOK' not in s,
- 'source version code':"versionCode 16" in g,
- 'source version name':"versionName '0.2.7-dev13-stale-import-bt-direction'" in g,
+ 'source version code':"versionCode 17" in g,
+ 'source version name':"versionName '0.2.8-dev14-playlist-navigation'" in g,
 }
 for label,ok in checks.items():print(('PASS' if ok else 'FAIL')+' '+label)
 assert all(checks.values()),'DEV8 Move Mode source wiring check failed'
