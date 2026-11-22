@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: Apache-2.0
+# Uncompiled source candidate: on owner invocation, build UNSIGNED APK only.
+# Locally sign with Aurora's established permanent DEV13 key for in-place updates.
+# This workflow has NO keys, no install/deploy step, no scheduled trigger.
+name: Dumbplayer DEV17 integrated unsigned candidate (local signing required)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unsigned-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Android SDK 33 and build tools
+        run: sdkmanager 'platforms;android-33' 'build-tools;33.0.2'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '7.6.4'
+      - name: Offline source and pure Java regressions
+        run: bash tests/run_dev17_source_smoke.sh
+      - name: Android compile and unsigned APK packaging
+        run: gradle --no-daemon :app:assembleRelease
+      - name: Verify unsigned package and version (NOT installable)
+        shell: bash
+        run: |
+          set -euo pipefail
+          unsigned='app/build/outputs/apk/release/app-release-unsigned.apk'
+          test -s "$unsigned"
+          package="$($ANDROID_HOME/build-tools/33.0.2/aapt dump badging "$unsigned" | sed -n '1p')"
+          [[ "$package" == *"name='org.roarin.kyocerakeypad.sandboxwqa365'"* ]]
+          [[ "$package" == *"versionCode='20'"* ]]
+          echo 'Verified UNSIGNED DEV17 artifact. It is not installable. Sign locally with the established permanent DEV13 key.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dumbplayer-dev17-UNSIGNED-LOCAL-SIGNING-REQUIRED
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
