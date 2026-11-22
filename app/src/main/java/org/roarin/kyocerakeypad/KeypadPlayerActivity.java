@@ -99,6 +99,24 @@ public final class KeypadPlayerActivity extends Activity {
     private String playingPlaylistId=""; // Opened from active playback, not the last browsed list.
     private boolean adding=false, browsingBook=false;
     private TextView heading, footer;
+    // Public edition palette: orange Music, navy Audiobooks. Text labels remain
+    // meaningful without color (keypad/screen-reader use).
+    private static final int MUSIC_ORANGE=Color.parseColor("#A85608");
+    private static final int BOOK_NAVY=Color.parseColor("#142B49");
+    private static final int MUSIC_SELECTED=Color.parseColor("#FFE4BB");
+    private static final int BOOK_SELECTED=Color.parseColor("#DAE8F5");
+    private static final int NEUTRAL_HEADER=Color.parseColor("#343A40");
+    private static final int NEUTRAL_SELECTED=Color.parseColor("#E5E5E5");
+    private boolean isAudiobookScreen(){
+        switch(screen){
+            case "NOW":case "PLAYING_LIST":case "PLAYING_ITEM":
+            case "BOOKMARKS":case "BOOKMARK_ACTIONS": return activeBook;
+            case "PLAYLISTS":case "DETAIL":case "TRACK_ACTIONS":
+            case "MOVE":case "LIBRARY":case "LIBRARY_TRACK":
+            case "LIBRARY_ADD":case "PREVIEW":case "ALPHABET":return browsingBook;
+            default:return false;
+        }
+    }
     private MediaPlayer previewPlayer; // Isolated audition: never writes music/book progress.
     private boolean previewPrepared=false, previewRequested=false;
     private String previewTrackKey="", libraryTrackKey="";
@@ -126,12 +144,12 @@ public final class KeypadPlayerActivity extends Activity {
         LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);
         box.setBackgroundColor(Color.parseColor("#F5F0EB"));
         heading=new TextView(this);heading.setTextSize(19);heading.setPadding(12,9,12,9);
-        heading.setTextColor(Color.WHITE);heading.setBackgroundColor(Color.parseColor("#713E46"));
+        heading.setTextColor(Color.WHITE);heading.setBackgroundColor(MUSIC_ORANGE);
         footer=new TextView(this);footer.setTextSize(15);footer.setPadding(12,8,12,8);
-        footer.setTextColor(Color.parseColor("#252022"));footer.setBackgroundColor(Color.parseColor("#E9DCD8"));
+        footer.setTextColor(Color.parseColor("#252022"));footer.setBackgroundColor(Color.parseColor("#F3E8DB"));
         list=new ListView(this);list.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
         list.setBackgroundColor(Color.parseColor("#F5F0EB"));
-        list.setSelector(new ColorDrawable(Color.parseColor("#D6A6AD")));
+        list.setSelector(new ColorDrawable(MUSIC_SELECTED));
         box.addView(heading);box.addView(list,new LinearLayout.LayoutParams(-1,0,1));box.addView(footer);
         setContentView(box);
         list.setOnItemClickListener((parent,view,pos,id)->{if(pos>=0 && pos<actions.size())actions.get(pos).run();});
@@ -147,6 +165,15 @@ public final class KeypadPlayerActivity extends Activity {
     }};
     private static String clock(long ms){long s=Math.max(0,ms)/1000;return String.format(Locale.US,"%02d:%02d:%02d",s/3600,(s/60)%60,s%60);}
     private void render(String title,String hint){
+        boolean book=isAudiobookScreen();
+        boolean laneScreen=book || "NOW".equals(screen) || "PLAYING_LIST".equals(screen) ||
+            "PLAYING_ITEM".equals(screen) || "PLAYLISTS".equals(screen) ||
+            "DETAIL".equals(screen) || "TRACK_ACTIONS".equals(screen) ||
+            "MOVE".equals(screen) || "LIBRARY".equals(screen) ||
+            "LIBRARY_TRACK".equals(screen) || "LIBRARY_ADD".equals(screen) ||
+            "PREVIEW".equals(screen) || "ALPHABET".equals(screen);
+        heading.setBackgroundColor(laneScreen?(book?BOOK_NAVY:MUSIC_ORANGE):NEUTRAL_HEADER);
+        list.setSelector(new ColorDrawable(laneScreen?(book?BOOK_SELECTED:MUSIC_SELECTED):NEUTRAL_SELECTED));
         heading.setTextSize("NOW".equals(screen)?16:19);
         footer.setTextSize("NOW".equals(screen)?13:15);
         heading.setText(title);footer.setText(hint);
@@ -267,9 +294,9 @@ public final class KeypadPlayerActivity extends Activity {
         // No build timestamp is invented for an uncompiled source-only ZIP.
         message("Dumbplayer · DISPOSABLE SANDBOX\nApplication ID: "+getPackageName()+"\nVersion: "+BuildConfig.VERSION_NAME+
             "\nBuild configured UTC: "+BuildConfig.BUILD_UTC+
-            "\nSource candidate prepared: 2026-11-06"+
+            "\nSource integrated: 2026-11-22 (DEV17)"+
             "\nRelease date: Not released"+
-            "\nDEV11 opt-in Bluetooth diagnostic source; real headset input test not certified."+
+            "\nMusic: orange · Audiobooks: navy. Notification resume and closed-flip playlist handoff are source candidates; real device test pending."+
             "\nMade by GPT-6 and Aurora Williamsen"+
             "\nOffline player · No cloud upload");
     }
@@ -277,7 +304,7 @@ public final class KeypadPlayerActivity extends Activity {
         reset("HELP");item("Back to home",this::showHome);
         item("Home menu: reorder and digits 1–9",()->message("On Home, highlight an entry and press * (provisional shortcut) to move it. Up/Down reorders, 1/9 jumps to top/bottom, Center saves, CLR cancels. On Home, digits 1–9 open the entries at their saved positions."));
         item("Playlists: select an item to reorder or remove",()->message("Highlight a playlist track and press * to move it in place. D-pad Up/Down moves it, 1/9 jumps to top/bottom, Center saves and CLR cancels. Track actions also opens Move Mode. Order is never alphabetized."));
-        item("Now playing: playlist and menu while listening",()->message("From Now Playing, open View playing playlist to browse, play or remove entries. Back and Main menu keep playback running. Home has a Return to Now Playing link while audio is prepared. Music/audiobook shuffle settings are independent. If a text interrupts audio, use Play in the media notification or press headset Play while the session is retained."));
+        item("Now playing: playlist and menu while listening",()->message("From Now Playing, open View playing playlist to browse, play or remove entries. Back and Main menu keep playback running. Home has a Return to Now Playing link while audio is prepared. Music/audiobook shuffle settings are independent. Short notification audio-focus interruptions should pause and resume the current position automatically. Manual Pause remains paused; phone calls require separate testing."));
         item("About / version",this::showAbout);
         item("Listening settings",this::showSettings);
         if(BuildConfig.DEBUG){
@@ -333,7 +360,7 @@ public final class KeypadPlayerActivity extends Activity {
         item("Sleep timer: set from Music or Audiobook Now Playing",()->message(
             "Start or resume a track, then choose Sleep timer in Now Playing. It pauses and saves the position."));
         item("← Home",this::showHome);
-        render("Listening settings","Rewind: Off / 5s / 10s · Off is default · no autoplay");
+        render("Listening settings","Rewind: Off / 5s / 10s · Short-notification resume only if previously playing");
     }
     private static String rewindLabel(int seconds){return seconds==0?"Off":seconds+" seconds";}
     private String sleepTimerLabel(){
@@ -1207,7 +1234,7 @@ public final class KeypadPlayerActivity extends Activity {
                 playback!=null && playback.shuffleEnabled(activeBook),
                 playback!=null && playback.repeatMode()==org.roarin.kyocerakeypad.core.PlaylistPlaybackOrder.Repeat.PLAYLIST);
         String orderHint=adjacent.sessionShuffleOrder?" (shuffle order)":"";
-        render("Prev"+orderHint+": "+shortTitle(titleForKey(adjacent.previousKey))+"\n"+
+        render((activeBook?"Audiobook":"Music")+" · Prev"+orderHint+": "+shortTitle(titleForKey(adjacent.previousKey))+"\n"+
             "▶ "+shortTitle(titleForKey(p.trackKey))+"\n"+
             "Next"+orderHint+": "+shortTitle(titleForKey(adjacent.nextKey)),nowFooter());
     }

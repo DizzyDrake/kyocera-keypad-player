@@ -155,6 +155,17 @@ public final class KeypadPlaybackService extends Service {
     private final PlaybackGate playbackGate = new PlaybackGate();
     private final AudioFocusGate focusGate = new AudioFocusGate();
     private long focusEpoch;
+    // DEV17: one-shot permission to resume a session temporarily paused by a
+    // notification/focus loss, never by manual Pause, Stop, or permanent loss.
+    private boolean transientResumePending;
+    // Do not start while seekTo(audiobook resume offset) is still pending.
+    private boolean awaitingInitialSeek;
+    private long trackTransitionCount;
+    private void playbackEvent(String event){
+        // Bounded identifier-free diagnosis for closed-flip shuffle delays.
+        android.util.Log.d("DumbplayerPlayback", "transition="+trackTransitionCount+
+            " elapsedMs="+SystemClock.elapsedRealtime()+" "+event);
+    }
     private MediaSession mediaSession;
     private boolean foreground;
     private String lastError = "";
@@ -266,7 +277,7 @@ public final class KeypadPlaybackService extends Service {
             // A pending start may arrive after Play failed or was paused. Honor
             // the foreground deadline first, then retire the idle start.
             if (player == null) retireForeground();
-            else if (isPrepared() && !isPlaying()) keepPausedControls();
+            else if (isPrepared() && !isPlaying() && !transientResumePending) keepPausedControls();
         } else { showForegroundForRecovery(); stopSelf(startId); }
         return START_NOT_STICKY; // Never automatically resume after process death.
     }
@@ -353,12 +364,15 @@ public final class KeypadPlaybackService extends Service {
     boolean isPlaying(){try{return player!=null && prepared && player.isPlaying();}catch(Exception e){return false;}}
     boolean isPrepared(){return player!=null && prepared;}
     boolean stopPlayer(){
+        transientResumePending=false;
         playbackGate.requestPause();savePosition();boolean saved=persist();abandonFocus();
-        MediaPlayer old=player;player=null;prepared=false;
+        MediaPlayer old=player;player=null;prepared=false;awaitingInitialSeek=false;
         if(old!=null){try{old.reset();}catch(Exception ignored){}finally{try{old.release();}catch(Exception ignored){}}}
         retireForeground();updateMediaSession();notifyChanged();return saved;
     }
     void pause(){
+        // Explicit owner action also cancels any transient auto-resume eligibility.
+        transientResumePending=false;
         playbackGate.requestPause();
         if(isPlaying())try{player.pause();}catch(Exception failure){
             stopPlayer();error("Playback could not pause; player released");return;
@@ -367,6 +381,7 @@ public final class KeypadPlaybackService extends Service {
         abandonFocus();keepPausedControls();updateMediaSession();notifyChanged();
     }
     void explicitPlay(){
+        transientResumePending=false;
         if(!isPrepared())return; // Never start from stale saved progress alone.
         if(requestFocus(activeBook)){
             playbackGate.requestPlay();
@@ -503,7 +518,7 @@ public final class KeypadPlaybackService extends Service {
             state=updated;
             playbackOrder.removeEntry(playlistId,expectedKey);
             if(activeCurrent){
-                releaseAfterCommittedRemoval();
+                releaseAfterCommittedRemoval(continuePlaying && nextKey!=null);
                 if(continuePlaying && nextKey!=null){
                     int nextIndex=updated.getPlaylist(playlistId).entries.indexOf(nextKey);
                     if(nextIndex>=0 && !playFromInternal(playlistId,nextIndex,false))
@@ -516,13 +531,17 @@ public final class KeypadPlaybackService extends Service {
         }
     }
     /** Release obsolete MediaPlayer without saving its position into the NEW track. */
-    private void releaseAfterCommittedRemoval(){
+    private void releaseAfterCommittedRemoval(boolean continuing){
+        transientResumePending=false;
         playbackGate.requestPause();
         abandonFocus();
-        MediaPlayer old=player;player=null;prepared=false;
+        MediaPlayer old=player;player=null;prepared=false;awaitingInitialSeek=false;
         if(old!=null){try{old.reset();}catch(Exception ignored){}
             finally{try{old.release();}catch(Exception ignored){}}}
-        retireForeground();updateMediaSession();
+        // An edited playlist continuing with another track owns the same service.
+        // Stop/retire only if no successor was chosen.
+        if(!continuing)retireForeground();
+        updateMediaSession();
     }
     boolean playPlaylist(String playlistId){
         PlayerState.Playlist p=state.playlists.get(playlistId);
@@ -536,6 +555,22 @@ public final class KeypadPlaybackService extends Service {
         if(p==null || index<0 || index>=p.entries.size()){error("Playlist entry missing");return false;}
         playbackOrder.start(p.id,p.entries,p.entries.get(index),shuffleEnabled(p.audiobook),shuffleRandom);
         return playFromInternal(playlistId,index,resume);
+    }
+    /**
+     * DEV17: switching tracks is NOT Stop. In particular, never call stopSelf()
+     * during completion -> prepareAsync of the next shuffled track while the
+     * phone is closed. The foreground service remains alive during handoff.
+     */
+    private boolean releaseForTrackHandoff(){
+        transientResumePending=false;
+        savePosition();
+        if(!persist())return false;
+        abandonFocus();
+        MediaPlayer old=player;player=null;prepared=false;awaitingInitialSeek=false;
+        if(old!=null){try{old.reset();}catch(Exception ignored){}
+            finally{try{old.release();}catch(Exception ignored){}}}
+        playbackEvent("old_media_player_released_without_service_stop");
+        return true;
     }
     private boolean playFromInternal(String playlistId,int index,boolean resume){
         lastError="";
@@ -555,15 +590,22 @@ public final class KeypadPlaybackService extends Service {
         // silently act on a newly selected playlist or Music/Audiobook session.
         if(sleepDeadlineElapsed>=0L && (sleepBook!=p.audiobook || !sleepPlaylistId.equals(p.id)))
             clearSleepTimer();
-        if(!stopPlayer()){error("Previous position could not be saved; playback stopped");return false;}
-        if(!requestFocus(p.audiobook)){error("Audio unavailable during call or interruption");return false;}
+        trackTransitionCount++;
+        playbackEvent("track_handoff_begin");
+        if(!releaseForTrackHandoff()){
+            stopPlayer();error("Previous position could not be saved; playback stopped");return false;
+        }
+        if(!requestFocus(p.audiobook)){
+            retireForeground();error("Audio unavailable during call or interruption");return false;
+        }
         final boolean oldBook=activeBook;
         final PlayerState.Progress oldProgress=new PlayerState.Progress(state.progress(p.audiobook));
         activeBook=p.audiobook;playbackGate.requestPlay();
         state.select(activeBook,p.id,key,start);
         if(!persist()){
             state.progress(activeBook).restoreFrom(oldProgress);activeBook=oldBook;
-            playbackGate.requestPause();abandonFocus();error("Cannot save new selection");return false;
+            playbackGate.requestPause();abandonFocus();retireForeground();
+            error("Cannot save new selection");return false;
         }
         try{
             MediaPlayer mp=new MediaPlayer();player=mp;prepared=false;
@@ -574,14 +616,19 @@ public final class KeypadPlaybackService extends Service {
             mp.setOnPreparedListener(ready->{
                 if(player!=ready)return;
                 prepared=true;
+                playbackEvent("on_prepared");
                 long at=audibleStart;
                 try {
-                    if(at>0){ready.setOnSeekCompleteListener(seeked->{
+                    if(at>0){
+                        awaitingInitialSeek=true;
+                        ready.setOnSeekCompleteListener(seeked->{
                         if(player!=seeked)return;
                         try {
                             seeked.setOnSeekCompleteListener(null);
+                            awaitingInitialSeek=false;
                             if(canStart()){
                                 seeked.start();
+                                playbackEvent("playback_started_after_seek");
                                 commitAudibleResumePosition(at);
                             }
                             updateMediaSession();notifyChanged();
@@ -591,7 +638,9 @@ public final class KeypadPlaybackService extends Service {
                         }
                     });ready.seekTo((int)Math.min(Integer.MAX_VALUE,at));}
                     else if(canStart()){
+                        awaitingInitialSeek=false;
                         ready.start();
+                        playbackEvent("playback_started");
                         commitAudibleResumePosition(at);
                     }
                     updateMediaSession();notifyChanged();
@@ -602,6 +651,7 @@ public final class KeypadPlaybackService extends Service {
             });
             mp.setOnCompletionListener(done->{
                 if(player!=done || !CompletionPolicy.mayAdvance(playbackGate,focusGate))return;
+                playbackEvent("on_completion");
                 savePosition();
                 if (!persist()) { stopPlayer();error("Position could not be saved; playback stopped");return; }
                 // Guard stale completion after playlist edits and focus changes.
@@ -624,7 +674,10 @@ public final class KeypadPlaybackService extends Service {
                 if(early)restoreFailedSelection(p.audiobook,p.id,key,oldProgress,oldBook);
                 error("Cannot play this track; original audio was not modified");return true;
             });
-            mp.prepareAsync();startForegroundService(new Intent(this, KeypadPlaybackService.class));showForeground();updateMediaSession();notifyChanged();return true;
+            mp.prepareAsync();
+            playbackEvent("prepare_async_issued");
+            startForegroundService(new Intent(this, KeypadPlaybackService.class));
+            showForeground();updateMediaSession();notifyChanged();return true;
         }catch(Exception e){
             stopPlayer();restoreFailedSelection(p.audiobook,p.id,key,oldProgress,oldBook);
             error("Cannot open track: "+e.getClass().getSimpleName());return false;
@@ -686,22 +739,72 @@ public final class KeypadPlaybackService extends Service {
         focusGate.onExplicitRequest(granted);if(!granted)abandonFocus();return granted;
     }
     private boolean canStart(){return playbackGate.canStart() && focusGate.canStart();}
+    private boolean phoneCallMode(){
+        if(audioManager==null)return false;
+        int mode=audioManager.getMode();
+        return mode==AudioManager.MODE_RINGTONE || mode==AudioManager.MODE_IN_CALL ||
+            mode==AudioManager.MODE_IN_COMMUNICATION;
+    }
+    /**
+     * DEV17 focus behavior for BOTH lanes. A temporary notification is permitted
+     * to resume only when this *same* session was playing or preparing.
+     * Calls can manifest as transient loss on some OEM systems: mode checks are
+     * a defensive guard, not complete telephony identification (device test needed).
+     */
     private void focusChanged(int change){
-        if(change==AudioManager.AUDIOFOCUS_GAIN){focusGate.onGain();return;}
-        if(change==AudioManager.AUDIOFOCUS_LOSS || change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
-                change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK){
-            focusGate.onLoss();playbackGate.requestPause();
-            if(isPlaying())try{player.pause();}catch(Exception failure){
-                stopPlayer();error("Interrupted playback could not pause; player released");return;
+        if(change==AudioManager.AUDIOFOCUS_GAIN){
+            focusGate.onGain();
+            if(!transientResumePending)return; // unsolicited or permanent gain
+            transientResumePending=false;
+            if(phoneCallMode() || player==null){
+                playbackGate.requestPause();focusGate.onLoss();
+                abandonFocus();keepPausedControls();updateMediaSession();notifyChanged();return;
             }
-            savePosition();if (!persist()) error("Position could not be saved");
-            // Keep the prepared track and MediaSession alive for an explicit
-            // headset/notification Play. Never restart just because focus returns.
+            // Only this service's already granted transient focus request may
+            // resume. A user Pause/Stop called abandonFocus() and cancelled it.
+            playbackGate.requestPlay();
+            if(canStart())try{
+                if(prepared && !awaitingInitialSeek){
+                    player.start();
+                    playbackEvent("auto_resumed_after_transient_focus_gain");
+                } // pending prepareAsync will start later through canStart().
+                showForeground();
+            }catch(Exception e){stopPlayer();error("Unable to resume after notification");return;}
+            updateMediaSession();notifyChanged();return;
+        }
+        boolean temporary=(change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
+            change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) && !phoneCallMode();
+        if(change!=AudioManager.AUDIOFOCUS_LOSS && !temporary &&
+            change!=AudioManager.AUDIOFOCUS_LOSS_TRANSIENT &&
+            change!=AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK)return;
+        boolean wasRequested=playbackGate.canStart();
+        if(temporary){
+            transientResumePending|=wasRequested;
+            focusGate.onTransientLoss();
+        }else{
+            transientResumePending=false;
+            focusGate.onLoss();
+        }
+        playbackGate.requestPause();
+        if(isPlaying())try{player.pause();}catch(Exception failure){
+            stopPlayer();error("Interrupted playback could not pause; player released");return;
+        }
+        savePosition();
+        if(!persist()){
+            stopPlayer();error("Position could not be saved; playback stopped");return;
+        }
+        if(temporary && transientResumePending){
+            // Keep the service foreground during the notification. Otherwise
+            // Android can terminate it before transient focus returns.
+            playbackEvent("transient_focus_paused");
+            updateMediaSession();notifyChanged();
+        }else{
+            // Permanent loss or a detected call is never generic autoplay.
             abandonFocus();keepPausedControls();updateMediaSession();notifyChanged();
-            // Focus GAIN deliberately cannot clear the explicit-interruption latch.
         }
     }
     void abandonFocus(){
+        transientResumePending=false;
         ++focusEpoch;focusGate.onAbandon();
         if(audioManager!=null && focusRequest!=null)audioManager.abandonAudioFocusRequest(focusRequest);
         focusRequest=null;
@@ -735,7 +838,7 @@ public final class KeypadPlaybackService extends Service {
             notificationAction(ACTION_NEXT,3)).build();
         return new Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle(title).setContentText(isPlaying()?"Playing":"Paused · select Play to resume")
-            .setContentIntent(pending).setOngoing(isPlaying())
+            .setContentIntent(pending).setOngoing(isPlaying() || transientResumePending)
             .addAction(previous).addAction(toggle).addAction(next)
             .setStyle(new Notification.MediaStyle().setMediaSession(mediaSession.getSessionToken())
                 .setShowActionsInCompactView(0,1,2)).build();
