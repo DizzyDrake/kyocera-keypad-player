@@ -23,7 +23,20 @@ Dumbplayer puts the D-pad and physical keys to work. Browse your music, arrange 
 
 Both modes include keypad navigation, a sleep timer, and persistent playback state. You can browse playlists while listening, rearrange their tracks, and remove a playlist entry while keeping the original audio file.
 
-An optional **manual playlist exchange with a Windows PC** exports library and playlist metadata as JSON. After editing playlists on your computer, you can import them on the phone with a preview and confirmation step. Audio files stay where they are.
+An optional **manual playlist exchange with a Windows or Linux computer** exports library and playlist metadata as JSON. After editing playlists on your computer, you can import them on the phone with a preview and confirmation step. Audio files stay where they are.
+
+## Playlist Desk for Windows and Linux
+
+[**Playlist Desk**](tools/playlist-desk/README.md) is the companion desktop editor. It helps arrange Music and Audiobook playlists with a full keyboard and mouse. It supports saved-playlist navigation, comma-combined library searches, local artist-first matching, and reviewing possible duplicates. The optional Gemma and MusicBrainz features are described in its own guide.
+
+The phone and desktop exchange playlist metadata as JSON. Export a phone snapshot, edit the playlists on your computer, and transfer `pc_playlist_import_v1.json` back to Dumbplayer for review and import. The [transfer walkthrough](tools/playlist-desk/README.md#move-playlists-between-the-phone-and-computer) covers the steps.
+
+Run Playlist Desk with Python and Tkinter:
+
+- **Windows:** `tools/playlist-desk/src/launch_windows.cmd`
+- **Linux:** from `tools/playlist-desk/src/`, run `bash launch_linux.sh` (Python 3.9+ and Tkinter).
+
+The [desktop guide](tools/playlist-desk/README.md) covers both platforms, and the [Linux port notes](tools/playlist-desk/README_LINUX_20261122.md) cover installation and path handling. Playlist Desk has its own [source and bridge checks](.github/workflows/playlist-desk-source-checks.yml).
 
 ## Keypad controls
 
