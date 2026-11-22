@@ -1,0 +1,113 @@
+{
+  "source_zip_sha256": "5385082fa542c6005dc6ebb8577fb7006a3479deeb35d3e9dd9d915770b1d6dd",
+  "changes": [
+    {
+      "path": ".github/workflows/dev17-unsigned-local-sign.yml",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "4f4cc1440cf901c135c9654483855161e7472d370d4cf46a07925bde595a2afe"
+    },
+    {
+      "path": "00_START_HERE_GITHUB_DEV17_20261122.md",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "b1f22d2a664de32786970ac86396d91e75bb642bed1ca84d6247fe1bf306e01d"
+    },
+    {
+      "path": "DEV17_SOURCE_IDENTITY.json",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "70291e26a65a64c5f85d0aaa740dd72c4613b8815c0c10082a942deca5929fe8"
+    },
+    {
+      "path": "PUSH_DEV16_TO_GITHUB.ps1",
+      "status": "removed",
+      "before_sha256": "6f98352c9061fa32c450bedf9ff9c9ceae8dd11fb77e9d073bc4466d1765d4d2",
+      "after_sha256": null
+    },
+    {
+      "path": "PUSH_DEV17_TO_GITHUB.ps1",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "6d84ad54b8ad3d1e0aac5289b3c1d189d66bc55e177597b302a1c9b9f3e95add"
+    },
+    {
+      "path": "README.md",
+      "status": "changed",
+      "before_sha256": "8d7d92f1f84c914acbdb25c6beec9f4e3c2af872751271441fa76deb025712c7",
+      "after_sha256": "abbd435b64b6d3455a8f26c1f93e69ba3be21119007e1912ee1b6f9089c558ac"
+    },
+    {
+      "path": "UPLOAD_TO_EXISTING_GITHUB.cmd",
+      "status": "changed",
+      "before_sha256": "03837738cbe0cc9fa6987175ad063e8cee19c4be549e4d83661933ee39049f01",
+      "after_sha256": "d0f29bc5fb35b95bf1a0d68ee52c13229b64992123393d804c0503ab125fd0dc"
+    },
+    {
+      "path": "app/build.gradle",
+      "status": "changed",
+      "before_sha256": "be4f1bd80c78ca1f742077fea62f38ad8ab225fca97e4d241a6a65372164c85e",
+      "after_sha256": "b426a922bde2c33c3b59d4f19951e98f79a2a87bd6df40a7a3f9a725e9289d82"
+    },
+    {
+      "path": "app/src/main/AndroidManifest.xml",
+      "status": "changed",
+      "before_sha256": "9b514b8e66f8ccd70dfe5d060a409c06c506cd034b7088d890fc782e86162834",
+      "after_sha256": "7815d471e37f95a037b4ee175516cb7740cb7fb1a216d13264b42a95d5ba0f64"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlaybackService.java",
+      "status": "changed",
+      "before_sha256": "97b2a5b3f00e6f4fa3a1835fb0a4e327ea10dc3de144ee73037cf79ed0592a97",
+      "after_sha256": "06c38cd78df8e352f4961031993a8a9cc94537245f33caf9981cd48463b9bce0"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/KeypadPlayerActivity.java",
+      "status": "changed",
+      "before_sha256": "715a4616be6d4923d6cf1a1a2dcf9c3efac8de6b1d9fbbcef64b2e70e5c44046",
+      "after_sha256": "f408db9a8a2c93f5a9f8f2bda9e5fd5e650d4fe664b701c671fe19af51c4d345"
+    },
+    {
+      "path": "app/src/main/java/org/roarin/kyocerakeypad/core/AudioFocusGate.java",
+      "status": "changed",
+      "before_sha256": "5cde04242ab000204e9123c1bf87c3978dea2b55547e28059e56d98e9d37b9f6",
+      "after_sha256": "b73ae162a625b22416e24ff02bf64d3f650a718391a58415323269f3632fd35e"
+    },
+    {
+      "path": "app/src/main/res/drawable/ic_dumbplayer_play_foreground.xml",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "d1217295f6713e5bebeb2623b271dc3e03bda62bb01fd3965c02d251dafedc67"
+    },
+    {
+      "path": "app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "dd57f3a8f4bba7385f2c97388f8507fec4a3f53f1372839efa8bcc4dc7da9b67"
+    },
+    {
+      "path": "app/src/main/res/values/colors.xml",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "88db35c692289b2deb4b0c77a576d53fd526448bb2a336c6a625bfeebba91aad"
+    },
+    {
+      "path": "tests/TransientFocusResumeTests.java",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "c53e1ecb96c48cf662cac9f8dd9bd803b4c1be5956eecd37cc90b5e42bf10c4b"
+    },
+    {
+      "path": "tests/run_dev17_source_smoke.sh",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "c366c48426e669e959c14dbfe010a9fda0b7cb808cfa97477f616f528c346158"
+    },
+    {
+      "path": "tests/test_dev17_integration_contract.py",
+      "status": "added",
+      "before_sha256": null,
+      "after_sha256": "4509bc30d855b17fca0fe9ae560e53e3a4345bf74cda82d705c3245b3a76d1e4"
+    }
+  ]
+}

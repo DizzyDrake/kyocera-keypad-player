@@ -1,3 +1,30 @@
+# Dumbplayer DEV17 — integrated Android source candidate
+
+**Latest complete GitHub Actions source handoff: 2026-11-22.** Start with
+[`00_START_HERE_GITHUB_DEV17_20261122.md`](00_START_HERE_GITHUB_DEV17_20261122.md).
+
+VersionCode **20**, package **`org.roarin.kyocerakeypad.sandboxwqa365`**. Source-only;
+this ZIP was **not signed, installed or tested on the physical Kyocera**.
+
+Added since verified DEV16: continuity across shuffled track transitions while flip closed,
+transient notification-focus pause/resume for **both Music and Audiobooks** (explicit
+Pause/Stop never resumes automatically), orange Music / navy Audiobooks UI,
+owner-defined navy/orange/white outlined adaptive icon, host regression checks,
+and a DEV17 unsigned GitHub Actions build workflow. Real call/notification events
+and closed-flip behavior must be tested on the target device.
+
+**To compile**: extract/copy this source to the root of the existing GitHub repository,
+then use **Actions → Dumbplayer DEV17 integrated unsigned candidate → Run workflow**.
+The workflow deliberately makes an *unsigned* APK; sign **locally** with the same
+permanent key used for the installed app, checking the signer before `adb install -r`.
+Do not uninstall the installed app to solve signature mismatches.
+
+The historical DEV13 README is retained below as source provenance, not current instructions.
+
+---
+
+## Historical DEV13 README (not the current source release)
+
 # Dumbplayer DEV13 — playlist import and Bluetooth owner trial
 
 **2026-11-08 source candidate only.** Derived from archived DEV12, preserving original source and existing WQA365 package identity. No phone installation, APK compilation, APK signing, or on-device DEV13 tests were performed for this bundle.

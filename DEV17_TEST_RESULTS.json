@@ -1,0 +1,27 @@
+{
+  "date_utc": "2026-11-22T18:35:29.826450+00:00",
+  "source_status": "integrated complete Android source candidate; GitHub Actions build not run",
+  "host_test_command": "bash tests/run_dev17_source_smoke.sh",
+  "host_test_exit_code": 0,
+  "host_test_output_sha256": "d0d3928e6bb5953e1f0db82da0119fee6b411257dbfc3095a38ba3aaa3e86b04",
+  "host_java_classes_run": 24,
+  "dev17_static_checks": "24/24 PASS",
+  "dev16_remote_skip_checks": "22/22 PASS",
+  "safe_library_checks": "14/14 PASS",
+  "stale_import_checks": "15/15 PASS",
+  "historical_tests_skipped": [
+    "tests/test_dev15_interrupted_notification.py (owner changed no-autoresume requirement)",
+    "older static tests that pin older versionCode/method signature",
+    "original DEV16 integrity verifier (code intentionally changed)"
+  ],
+  "android_sdk_compilation": "NOT RUN: Android SDK 33, Gradle toolchain unavailable in this runtime",
+  "github_actions_compile": "NOT RUN: repository not identified/modified",
+  "device_audio_tests": "NOT RUN: target Kyocera not accessible",
+  "APK": "none",
+  "signing": "none",
+  "caveats": [
+    "Call event may manifest as transient focus and OEM audio mode may be unreliable; ensure real call testing",
+    "Temporary focus event may or may not produce GAIN on actual Kyocera",
+    "No actual closed-flip/shuffle timing proof until device trial"
+  ]
+}

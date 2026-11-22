@@ -1,0 +1,21 @@
+{
+  "source_branch": "DEV17 November 22 integrated GitHub candidate",
+  "base_zip": "DUMBPLAYER_DEV16_CONSOLIDATED_GITHUB_UPLOAD_READY_20261115.zip",
+  "base_sha256": "5385082fa542c6005dc6ebb8577fb7006a3479deeb35d3e9dd9d915770b1d6dd",
+  "implementation_not_installed": true,
+  "versionCode": 20,
+  "applicationId": "org.roarin.kyocerakeypad.sandboxwqa365",
+  "original_signing_certificate_sha256": "c0a30929883d4e56135f402193bb3ad4128f3122974406b3cfee9ab6d84a3b8c",
+  "new_code_fixes": [
+    "service-preserving track handoff",
+    "transient focus resume",
+    "orange/navy UI",
+    "adaptive icon"
+  ],
+  "not_proven": [
+    "GitHub Actions build",
+    "APK signature",
+    "phone closed-flip playback",
+    "notification/call handling on real device"
+  ]
+}
