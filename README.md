@@ -1,118 +1,92 @@
-# Dumbplayer DEV17 — integrated Android source candidate
+<div align="center">
+  <img src="assets/dumbplayer-icon.svg" width="112" height="112" alt="Orange play triangle with a white outline on a navy background">
 
-**Latest complete GitHub Actions source handoff: 2026-11-22.** Start with
-[`00_START_HERE_GITHUB_DEV17_20261122.md`](00_START_HERE_GITHUB_DEV17_20261122.md).
+  # Dumbplayer
 
-VersionCode **20**, package **`org.roarin.kyocerakeypad.sandboxwqa365`**. Source-only;
-this ZIP was **not signed, installed or tested on the physical Kyocera**.
+  **Music and audiobooks, built for real buttons.**
 
-Added since verified DEV16: continuity across shuffled track transitions while flip closed,
-transient notification-focus pause/resume for **both Music and Audiobooks** (explicit
-Pause/Stop never resumes automatically), orange Music / navy Audiobooks UI,
-owner-defined navy/orange/white outlined adaptive icon, host regression checks,
-and a DEV17 unsigned GitHub Actions build workflow. Real call/notification events
-and closed-flip behavior must be tested on the target device.
+  A local audio player for Android phones with physical keypads, developed for the Kyocera DuraXA Equip (E4831).
 
-**To compile**: extract/copy this source to the root of the existing GitHub repository,
-then use **Actions → Dumbplayer DEV17 integrated unsigned candidate → Run workflow**.
-The workflow deliberately makes an *unsigned* APK; sign **locally** with the same
-permanent key used for the installed app, checking the signer before `adb install -r`.
-Do not uninstall the installed app to solve signature mismatches.
+  **Music in orange · Audiobooks in navy**
+</div>
 
-The historical DEV13 README is retained below as source provenance, not current instructions.
+Dumbplayer puts the D-pad and physical keys to work. Browse your music, arrange playlists, pick up an audiobook, or skip ahead without reaching for a touchscreen. Your recordings stay on your phone, and the app works offline.
 
----
+## Features
 
-## Historical DEV13 README (not the current source release)
+| Music | Audiobooks |
+| --- | --- |
+| Browse local songs and build playlists in your own order | Keep listening progress separate from Music |
+| Shuffle and repeat controls | Save, browse, rename, and jump to bookmarks |
+| Browse the playing playlist and choose another track while audio continues | Quick backward and forward seeks |
+| Choose how Bluetooth Next/Previous behaves | Choose Bluetooth behavior independently from Music |
 
-# Dumbplayer DEV13 — playlist import and Bluetooth owner trial
+Both modes include keypad navigation, a sleep timer, and persistent playback state. You can browse playlists while listening, rearrange their tracks, and remove a playlist entry while keeping the original audio file.
 
-**2026-11-08 source candidate only.** Derived from archived DEV12, preserving original source and existing WQA365 package identity. No phone installation, APK compilation, APK signing, or on-device DEV13 tests were performed for this bundle.
+An optional **manual playlist exchange with a Windows PC** exports library and playlist metadata as JSON. After editing playlists on your computer, you can import them on the phone with a preview and confirmation step. Audio files stay where they are.
 
-## Owner-selected behavior integrated
+## Keypad controls
 
-- **Double Volume Down: forward 30 seconds**; **double Volume Up: back 15 seconds** while playing. Normal single-press volume changes continue; incidental volume changes on double presses are acceptable. The experimental setting remains user-selectable in Listening settings. Existing settings/preferences persist on compatible in-place update. Because input is inferred from sampled volume-level changes, the phone's own volume buttons can also trigger seeks, and the endpoints may not be detected.
-- The DEV11 diagnostic still records Bluetooth media events and music-volume index changes during a manually selected 45-second recording; it is independent of the experimental double-volume seek setting.
-- Home title derives `DEV13` from Gradle `BuildConfig.VERSION_NAME`; no leftover `DEV10 Import Trial` banner.
-- `Import PC playlists (ADB transfer)` requires the `kyocera-playlist-import-v0.1` schema and the exact filename `pc_playlist_import_v1.json` in this app's external `transfer` folder. Stale or missing `expected_snapshot_id` is allowed with a clear warning. File structure and duplicate track/playlist identities still validated.
-- Import preview lists how many available/missing track references are found. Missing IDs are skipped; original relative playlist and track order, names, audiobook flags, and empty playlists are retained. User must confirm **Replace playlists**; preflight does not stop playback. After confirmation, all existing playlist definitions are replaced; usable bookmarks and audio remain untouched; valid resume state retained when possible.
-- Caution: Android can reassign a content media ID to different audio. A stale import can therefore include the *wrong* file for an ID that still exists. The preview cannot automatically prove identity; do not claim it does.
+On the **Now Playing** screen:
 
-## DEV12 compatibility and safe signing
+| Key | Action |
+| --- | --- |
+| `1` / `3` | Back 10 seconds / forward 10 seconds |
+| `4` / `6` | Previous / next track |
+| `5` | Play / pause |
+| `0` (Audiobooks) | Quick bookmark |
+| `7` / `9` (Audiobooks) | Previous / next bookmark |
+| `#` (Audiobooks) | Open bookmarks |
+| Back | Return to the menu while playback continues |
 
-This source keeps applicationId `org.roarin.kyocerakeypad.sandboxwqa365` and bumps versionCode **15 → 16**; versionName `0.2.7-dev13-stale-import-bt-direction`. Both version and package are necessary but not sufficient for update. Android **requires a matching signing certificate**.
+On **Home**, number keys `1`–`9` open the corresponding menu item, and `*` opens menu reordering. In playlist move mode, Up/Down adjusts a track's position, `1`/`9` moves it to the top/bottom, Center saves, and Back/CLR cancels.
 
-The owner-supplied `app-debug.apk` of DEV12 was independently inspected for its embedded APK Signature Scheme v2 signer certificate:
+### Headsets and Bluetooth
 
-`C7F55F72049E0547354F65816836856735124AB9B46AC73A0265AF099FEFAC16` (SHA-256)
+The app can interpret standard Bluetooth **Next/Previous** commands differently for Music and Audiobooks. The defaults are:
 
-The APK's certificate is public. **Its corresponding private signing key is not recoverable from the APK.** The certificate `not_before` was `2026-11-08T21:20:53Z`; the development build may have used a newly generated ephemeral GitHub Actions debug key. Merely building this source in a new GitHub Actions runner can create a different signing key and **cannot be assumed to update DEV12**.
+- **Music:** previous or next track.
+- **Audiobooks:** back **15 seconds** or forward **30 seconds**.
 
-Two GitHub Actions workflows in `.github/workflows/`:
+You can change each mode's behavior from its Now Playing controls. Headsets vary in the media commands they send; volume-button and double-tap behavior will depend on the particular device.
 
-1. `dev13-compile-check.yml`: Build and run tests; intentionally uploads **no APK**.
-2. `dev13-update-signed.yml`: Build **unsigned release**, sign with a GitHub Secrets keystore, verify APK signature, enforce the expected DEV12 certificate, application ID and versionCode 16, **then** upload the update APK. On mismatch/missing secret, the workflow fails rather than deliver an incompatible installer.
+## Current source
 
-For the second workflow, the repository owner must possess the **original DEV12 private signing key** and configure these GitHub repository *Actions secrets* (do not paste secrets into chats/logs):
+**DEV17** brings together the latest keypad, playlist, and audiobook features with some newer work on playback continuity and appearance:
 
-- `KYOCERA_DEV12_KEYSTORE_BASE64`: base64 of the original Java keystore bytes, generated privately and uploaded as GitHub secret
-- `KYOCERA_DEV12_KEYSTORE_PASSWORD`
-- `KYOCERA_DEV12_KEY_ALIAS`
-- `KYOCERA_DEV12_KEY_PASSWORD`
+- **Track changes:** the player keeps its foreground service active while it prepares the next recording.
+- **Short interruptions:** a playing Music or Audiobook session can pause for transient audio-focus loss and resume from its saved position when focus returns. Manual Pause and Stop remain under your control.
+- **Appearance:** orange for Music, navy for Audiobooks, and a white-outlined orange play triangle on navy for the app icon. Shared screens use neutral styling and clear labels.
 
-If the original key was generated on a disposable runner and not backed up, **we cannot promise an in-place update**. Do not uninstall, clear data, or replace the installed app on that basis. Revisit owner-approved backup/migration separately. An installed DEV12 backup APK alone does not contain the needed private key.
+The host-side Java and source checks have passed. **GitHub Actions compilation, signing, and DEV17 testing on the physical Kyocera are still pending.** Hardware testing will be especially useful for closed-phone shuffle, notification sounds, calls, and Bluetooth controls.
 
-After the signed workflow succeeds, use `adb install -r "path/to/dumbplayer-dev13-update-candidate.apk"`; `-r` requests an update retaining app data. On `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, stop and preserve installed DEV12, then report the error. Do not uninstall to force a signature change.
+For implementation details, see the [DEV17 release notes](RELEASE_NOTES_DEV17_20261122.md), [DEV16–DEV17 change ledger](DEV16_TO_DEV17_SOURCE_CHANGE_LEDGER.json), and [test results](DEV17_TEST_RESULTS.json).
 
-## What was tested here
+## Build with GitHub Actions
 
-See `DEV13_TEST_REPORT.json` and `DEV12_TO_DEV13.patch` in the root. Offline Java and static source checks can pass without an Android SDK. SDK/Gradle APK compile, GitHub secrets, signing with owner key, device installation, playback/seek, and imports on physical phone remain **unverified** until run by the owner.
+The source targets **Android 10 (API 29)**, with **Java 17**, **Android SDK 33**, **Gradle 7.6.4**, and **Android Gradle Plugin 7.4.2**.
 
-## Build inputs / ownership
+1. Upload the full source tree to a GitHub repository, keeping `app/`, `tests/`, and `.github/workflows/` in place.
+2. Open **Actions** and select [**Dumbplayer DEV17 integrated unsigned candidate**](.github/workflows/dev17-unsigned-local-sign.yml).
+3. Choose **Run workflow**, then download the `dumbplayer-dev17-UNSIGNED-LOCAL-SIGNING-REQUIRED` artifact after a successful build.
+4. Sign the resulting APK locally with Android SDK tools. To update an existing installation and keep its data, use the **same signing certificate** as the installed app.
 
-- Android SDK 33, build-tools 33.0.2, Java 17, Gradle 7.6.4 (GitHub workflow provisions them).
-- Previous DEV12 ZIP and stale-import WIP patch remain separately preserved in the ChatGPT Library project.
-- No private playlists, audio files, device logs, APK, keystore, or account credentials are bundled in this source ZIP.
-- Parent Work Queue: `WQ-20261023-137`. This is one integration continuation, not a new parent task.
+The [DEV17 build guide](00_START_HERE_GITHUB_DEV17_20261122.md) includes the GitHub upload steps, signing commands, and certificate verification instructions.
 
-## DEV13 R3: current-library snapshot + explicit unavailable-reference cleanup (November 8, 2026)
+To run the host-side checks on a computer with the necessary tools:
 
-- **Export metadata for PC** now builds a **detached** export view using only safe
-  track IDs observed by the latest audio scan. Old or changed MediaStore IDs,
-  playlist references, orphan bookmarks, and invalid playback contexts are omitted
-  **from the exported JSON only**, with counts in the confirmation/result.
-  Saved playlists and physical audio files are not deleted by export.
-- **Listening settings → Rescan local audio** refreshes the phone's observation.
-- **Listening settings → Review / clear unavailable audio references** gives a
-  counts-and-consequences confirmation before deleting stale saved references.
-  The app keeps playlist names and remaining track order, and never deletes audio.
-  A temporarily disconnected/unscanned file can look unavailable; rescan first.
-- **Browse/search local audio** hides unavailable entries. Saved playlists still
-  display unavailable placeholders until explicit cleanup.
-- **Import PC playlists** accepts stale snapshot IDs and checks incoming track
-  identities against the *currently observed* usable IDs, skipping missing IDs
-  with a warning. Filename remains exactly `pc_playlist_import_v1.json`.
-- Playlist Desk v0.16 (and compatible derivatives) can reattach old edited
-  playlists to a fresh phone snapshot using matching relative audio paths. Rename
-  or move a file and that exact-path reattachment may fail; no speculative title
-  matching occurs.
+```bash
+bash tests/run_dev17_source_smoke.sh
+```
 
-### DEV13 first installation after DEV12 (owner chose blank slate)
+The workflow downloads the required Gradle version. This source package contains the current DEV17 workflow alongside historical project documentation.
 
-The original DEV12 debug certificate differs from Aurora's new permanent signing
-certificate `C0:A3:09:29:88:3D:4E:56:13:5F:40:21:93:BB:3A:D4:12:8F:31:22:97:44:06:B3:CF:EE:9A:B6:D8:4A:3B:8C`.
-**Do not use** `dev13-update-signed.yml` with a substitute key: it deliberately
-checks the *old* DEV12 certificate. For the clean DEV13 installation, use
-`.github/workflows/dev13-first-install-unsigned.yml` to build and download an
-**UNSIGNED, NOT INSTALLABLE** APK, then sign it locally with the new permanent key
-using Android SDK build-tools (`zipalign` and `apksigner`). Verify the new
-certificate before installation. Android will not install it over DEV12 because
-signatures differ. Before uninstalling DEV12, retain the independently backed-up
-private-state TAR (owner-reported SHA-256
-`7103B9B89D15018842F67FD5354772DF752B70B5E7DD8BCB60F7B99BC7AC6306`)
-and external transfer folder. A fresh install intentionally starts without DEV12
-app data; saved Bridge JSON can be imported afterward. Do not commit or upload
-signing keystores or passwords. Subsequent builds should reuse this same key.
+## Compatibility and feedback
 
-**Verification scope:** Pure-Java and static source tests pass; this change has
-not been Android SDK-compiled or tested on the physical Kyocera in this session.
+Development and device testing have centered on the Kyocera DuraXA Equip (E4831). Other keypad-operated Android phones may work, with their own key mapping and audio-format support. The current audio decoder support comes from the Android device; M4B support has yet to be established.
+
+If you try the app, useful reports include your phone model, Android version, the physical key or headset command used, and what happened. Sanitized logs are welcome; personal audio and playlist filenames can stay private.
+
+## License
+
+The repository includes the [Apache License 2.0](LICENSE) for original Dumbplayer source and documentation where the relevant contributors hold the licensing rights. [License scope and third-party notes](LICENSE_SCOPE.md) cover the details, including historical code and dependencies.
