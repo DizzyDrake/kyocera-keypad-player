@@ -1,0 +1,17 @@
+{
+  "schema": "kyocera-phone-snapshot-v0.1-PROVISIONAL",
+  "snapshot_id": "fictional-e4831-snapshot-001",
+  "revision": 7,
+  "tracks": [
+    {"key":"content://media/external/audio/media/10","path":"Music/Beta.mp3","title":"Beta","artist":"Imaginary Group","album":"Example","genre":"Fictional","duration_ms":60000,"size_bytes":100},
+    {"key":"content://media/external/audio/media/20","path":"Music/Álpha.mp3","title":"Álpha","artist":"Imaginary Group","album":"Example","genre":"Fictional","duration_ms":30000,"size_bytes":200},
+    {"key":"content://media/external/audio/media/30","path":"Books/Chapter01.mp3","title":"Chapter One","artist":"Made-up Author","album":"Imaginary Book","genre":"Audiobook","duration_ms":120000,"size_bytes":300}
+  ],
+  "playlists": [
+    {"id":"phone-music-01","name":"My order","audiobook":false,"track_keys":["content://media/external/audio/media/10","content://media/external/audio/media/20"]},
+    {"id":"phone-book-01","name":"Story","audiobook":true,"track_keys":["content://media/external/audio/media/30"]}
+  ],
+  "music":{"playlist_id":"phone-music-01","track_key":"content://media/external/audio/media/10","position_ms":12345},
+  "book":{"playlist_id":"phone-book-01","track_key":"content://media/external/audio/media/30","position_ms":40000},
+  "bookmarks":[{"track_key":"content://media/external/audio/media/30","name":"Favorite","position_ms":50000}]
+}

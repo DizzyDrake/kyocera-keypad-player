@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1,Imaginary Group - Álpha
+Music/Álpha.mp3
+#EXTINF:-1,Imaginary Group - Beta
+https://example.invalid/fictional-not-fetched.mp3
+#EXTINF:-1,Unknown Artist - Absent Song
+Missing.mp3

@@ -1,0 +1,8 @@
+{
+  "schema": "kyocera-playlists-v0.1",
+  "tracks": [
+    {"id": "sample-002", "path": "Music/Fictional_Beta.mp3", "title": "Beta (invented)", "artist": "Sample Artist", "album": "Demo", "genre": "Fiction", "duration_ms": 120000},
+    {"id": "sample-001", "path": "Music/Fictional_Alpha.mp3", "title": "Alpha (invented)", "artist": "Sample Artist", "album": "Demo", "genre": "Fiction", "duration_ms": 100000}
+  ],
+  "playlists": [{"name": "Personal Order", "track_ids": ["sample-002", "sample-001"]}]
+}

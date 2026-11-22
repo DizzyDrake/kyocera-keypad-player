@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-15",
+  "identity": "PLAYLIST_DESK_INTEGRATED_SOURCE_20261115",
+  "status": "INTEGRATED_SOURCE_TESTED_OFFLINE_NOT_OWNER_ACCEPTED",
+  "baseline": {
+    "filename": "PLAYLIST_DESK_WQB390_GUARDED_WQC013_SOURCE_ONLY.zip",
+    "sha256": "098ff15f0269e1ecdce255004629e907dde02ff6db7b2f8c08359202f4b11549",
+    "zip_entries": 95
+  },
+  "runtime_changes": [],
+  "test_changes": [
+    {
+      "path": "src/tests/gui_smoke.py",
+      "reason": "Align stale status-text assertion with already-shipped retained-playlists wording"
+    }
+  ],
+  "added_existing_regressions": [
+    "src/tests/gui_wqb388_combined_ui.py",
+    "src/tests/gui_wqc021_guard.py"
+  ],
+  "verification": {
+    "unit_tests": 242,
+    "tk_xvfb_scripts_passed": 8,
+    "python_compileall": true,
+    "owner_windows_trial": false,
+    "owner_installed": false
+  },
+  "queue_control": "PAUSED / OWNER_HOLD for WQ-20261030-012, WQ-20261023-137 and WQ-OWNER-20261112-KYOCERA-POMODORO-TIMER; owner directly authorized this one integrated source handoff",
+  "note": "Old historical README/manifest files inside src remain exact inherited provenance, not current source state. No music media included."
+}

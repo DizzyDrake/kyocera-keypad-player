@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-22",
+  "identity": "PLAYLIST_DESK_LINUX_SOURCE_FROM_20261115_20261122",
+  "status": "LINUX_SOURCE_TESTED_XVFB_NOT_OWNER_TESTED",
+  "parent": {
+    "name": "PLAYLIST_DESK_INTEGRATED_SOURCE_20261115.zip",
+    "sha256": "ceaf79e1220ce4b9d40b5ad40dfe5b036cd449d0a048349abb755917ed89deaa",
+    "bytes": 186610
+  },
+  "modified_runtime": [
+    "src/pc_file_add.py",
+    "src/integrated_app.py"
+  ],
+  "new_files": [
+    "src/launch_linux.sh",
+    "src/tests/test_linux_port.py",
+    "src/tests/gui_linux_port.py",
+    "README_LINUX_20261122.md",
+    "LINUX_PORT_CHANGES_20261122.patch",
+    "LINUX_PORT_TEST_REPORT_20261122.md",
+    "LINUX_PORT_MANIFEST_20261122.json",
+    "provenance/SHA256SUMS_ORIGINAL_20261115.txt"
+  ],
+  "test_summary": {
+    "unit_pass": 249,
+    "gui_scripts_pass": 10,
+    "compileall": true,
+    "linux_launcher_xvfb_bounded": true,
+    "owner_linux_trial": false,
+    "owner_windows_trial": false,
+    "real_media_access": false,
+    "real_ollama": false
+  },
+  "queue_control": "Existing PAUSED / OWNER_HOLD unchanged; this is a direct owner-requested Linux port only",
+  "note": "November 15 source retained in Library; this is a separate candidate, not a release or installation."
+}
